@@ -1,0 +1,115 @@
+// Copyright 2021 Harald Albrecht.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package whalewatcher
+
+import (
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
+)
+
+var _ = Describe("composer project proxy", func() {
+
+	It("prints", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+		Expect(p.String()).To(Equal("empty composer project 'gnampf'"))
+
+		p.add(&Container{Name: "furious_furuncle"})
+		p.add(&Container{Name: "mad_moby"})
+		Expect(p.String()).To(Equal(
+			"composer project 'gnampf' with containers: 'furious_furuncle', 'mad_moby'"))
+	})
+
+	It("adds containers", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		ff := &Container{Name: "furious_furuncle"}
+		p.add(ff)
+		p.add(&Container{Name: "mad_moby"})
+
+		Expect(p.ContainerNames()).To(ConsistOf(
+			"furious_furuncle", "mad_moby"))
+	})
+
+	It("updates existing container", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		p.add(&Container{Name: "furious_furuncle", ID: "1"})
+		p.add(&Container{Name: "mad_moby"})
+		p.add(&Container{Name: "furious_furuncle", ID: "2"})
+
+		Expect(p.Containers()).To(HaveLen(2))
+		Expect(p.ContainerNames()).To(ConsistOf(
+			"furious_furuncle", "mad_moby"))
+		Expect(p.Containers()).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
+			"Name": Equal("furious_furuncle"),
+			"ID":   Equal("2"),
+		}))))
+	})
+
+	It("removes containers", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		ff := &Container{Name: "furious_furuncle"}
+		p.add(ff)
+		p.add(&Container{Name: "mad_moby"})
+
+		p.remove("foobar")
+		Expect(p.ContainerNames()).To(ConsistOf(
+			"furious_furuncle", "mad_moby"))
+
+		p.remove("furious_furuncle")
+		Expect(p.ContainerNames()).To(ConsistOf("mad_moby"))
+
+		p.remove("mad_moby")
+		Expect(p.Containers()).To(BeEmpty())
+
+		p.remove("mad_moby")
+		Expect(p.Containers()).To(BeEmpty())
+	})
+
+	It("lists its containers", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		p.add(&Container{Name: "furious_furuncle"})
+		cs := p.Containers()
+		p.add(&Container{Name: "mad_moby"})
+		Expect(p.Containers()).To(HaveLen(2))
+		Expect(cs).To(HaveLen(1)) // Must not have changed.
+	})
+
+	It("finds a container", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		p.add(&Container{Name: "furious_furuncle"})
+		p.add(&Container{Name: "mad_moby", ID: "666"})
+
+		Expect(p.Container("rusty_rumpelpumpel")).To(BeNil())
+		mm := p.Container("mad_moby")
+		Expect(mm).NotTo(BeNil())
+		Expect(mm.Name).To(Equal("mad_moby"))
+
+		mm = p.Container("666")
+		Expect(mm).NotTo(BeNil())
+		Expect(mm.Name).To(Equal("mad_moby"))
+	})
+
+})
