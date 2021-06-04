@@ -22,7 +22,7 @@ import (
 var _ = Describe("composer project portfolio", func() {
 
 	It("always has zero project", func() {
-		pf := newPortfolio()
+		pf := NewPortfolio()
 		Expect(pf).NotTo(BeNil())
 		Expect(pf.Names()).To(BeEmpty())
 		Expect(pf.Project("")).NotTo(BeNil())
@@ -31,16 +31,16 @@ var _ = Describe("composer project portfolio", func() {
 	})
 
 	It("adds containers and projects", func() {
-		pf := newPortfolio()
+		pf := NewPortfolio()
 		Expect(pf).NotTo(BeNil())
 
-		pf.add(&Container{
-			Name:   "furious_furuncle",
-			Labels: map[string]string{ComposerProjectLabel: "grumpy"},
+		pf.Add(&Container{
+			Name:    "furious_furuncle",
+			Project: "grumpy",
 		})
-		pf.add(&Container{
-			Name:   "murky_moby",
-			Labels: map[string]string{ComposerProjectLabel: "grumpy"},
+		pf.Add(&Container{
+			Name:    "murky_moby",
+			Project: "grumpy",
 		})
 		Expect(pf.Names()).To(ConsistOf("grumpy"))
 
@@ -51,31 +51,31 @@ var _ = Describe("composer project portfolio", func() {
 	})
 
 	It("removes containers and projects", func() {
-		pf := newPortfolio()
+		pf := NewPortfolio()
 		Expect(pf).NotTo(BeNil())
 
-		pf.add(&Container{
-			Name:   "furious_furuncle",
-			Labels: map[string]string{ComposerProjectLabel: "grumpy"},
+		pf.Add(&Container{
+			Name:    "furious_furuncle",
+			Project: "grumpy",
 		})
-		pf.add(&Container{
-			Name:   "murky_moby",
-			Labels: map[string]string{ComposerProjectLabel: "grumpy"},
+		pf.Add(&Container{
+			Name:    "murky_moby",
+			Project: "grumpy",
 		})
 		Expect(pf.Names()).To(ConsistOf("grumpy"))
 
 		Expect(pf.Project("grumpy")).NotTo(BeNil())
 
-		pf.remove("missing_moby", "")
+		pf.Remove("missing_moby", "")
 		Expect(pf.Project("")).NotTo(BeNil())
 
-		pf.remove("missing_moby", "grumpy")
+		pf.Remove("missing_moby", "grumpy")
 		Expect(pf.Project("grumpy").ContainerNames()).To(ConsistOf("murky_moby", "furious_furuncle"))
 
-		pf.remove("murky_moby", "grumpy")
+		pf.Remove("murky_moby", "grumpy")
 		Expect(pf.Project("grumpy").ContainerNames()).To(ConsistOf("furious_furuncle"))
 
-		pf.remove("furious_furuncle", "grumpy")
+		pf.Remove("furious_furuncle", "grumpy")
 		Expect(pf.Project("grumpy")).To(BeNil())
 		Expect(pf.ContainerTotal()).To(Equal(0))
 	})

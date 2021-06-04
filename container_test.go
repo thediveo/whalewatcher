@@ -15,13 +15,10 @@
 package whalewatcher
 
 import (
-	"context"
 	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
-
-	"github.com/thediveo/whalewatcher/test/mockingmoby"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -30,69 +27,27 @@ import (
 // newTestContainer adds a new fake/mock container with the specified name and
 // project name label, as well as a random ID string. The container ID and PID
 // is then returned to the caller.
-func newTestContainer(mm *mockingmoby.MockingMoby, name, projectname string) (string, int) {
+func newTestContainer(name, projectname string) (*Container, string, int) {
 	o := make([]byte, 32) // length of fake SHA256 in "octets" :p
 	_, err := crand.Read(o)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	id := hex.EncodeToString(o)
 	pid := rand.Intn(4194303) + 1
-	mm.AddContainer(mockingmoby.MockedContainer{
-		ID:     id,
-		Name:   name,
-		Status: mockingmoby.MockedRunning,
-		PID:    pid,
-		Labels: map[string]string{
-			ComposerProjectLabel: projectname,
-		},
-	})
-	return id, pid
+	return &Container{
+		ID:      id,
+		Name:    name,
+		PID:     pid,
+		Project: projectname,
+	}, id, pid
 }
 
 var _ = Describe("container proxy", func() {
 
-	var mm *mockingmoby.MockingMoby
-
-	BeforeEach(func() {
-		mm = mockingmoby.NewMockingMoby()
-		Expect(mm).NotTo(BeNil())
-	})
-
-	AfterEach(func() {
-		mm.Close()
-	})
-
 	It("stringifies", func() {
-		pp, pppid := newTestContainer(mm, "poehser_puhbe", "gnampf")
-		c, err := newContainer(context.Background(), mm, pp)
-		Expect(err).NotTo(HaveOccurred())
+		c, pp, pppid := newTestContainer("poehser_puhbe", "gnampf")
 		Expect(c.String()).To(MatchRegexp(
 			fmt.Sprintf(`container '%s'/%s from project 'gnampf' with PID %d`,
 				"poehser_puhbe", pp, pppid)))
-	})
-
-	It("fails for invalid id/name", func() {
-		c, err := newContainer(context.Background(), mm, "rusty_rumpelpumpel")
-		Expect(err).To(HaveOccurred())
-		Expect(c).To(BeNil())
-	})
-
-	It("fails when stopped", func() {
-		pp, _ := newTestContainer(mm, "poehser_puhbe", "gnampf")
-		// Only stop, but don't remove the fake container yet.
-		mm.StopContainer(pp)
-		c, err := newContainer(context.Background(), mm, "poehser_puhbe")
-		Expect(err).To(HaveOccurred())
-		Expect(c).To(BeNil())
-	})
-
-	It("new from inspection", func() {
-		pp, pppid := newTestContainer(mm, "poehser_puhbe", "gnampf")
-		c, err := newContainer(context.Background(), mm, pp)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(c.ID).To(Equal(pp))
-		Expect(c.Name).To(Equal("poehser_puhbe"))
-		Expect(c.PID).To(Equal(pppid))
-		Expect(c.ProjectName()).To(Equal("gnampf"))
 	})
 
 })

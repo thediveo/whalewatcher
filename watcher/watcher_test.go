@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package whalewatcher
+package watcher
 
 import (
 	"context"
 
+	"github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
 
 	. "github.com/onsi/ginkgo"
@@ -24,7 +25,7 @@ import (
 )
 
 var (
-	mocking_moby = mockingmoby.MockedContainer{
+	mockingMoby = mockingmoby.MockedContainer{
 		ID:     "1234567890",
 		Name:   "mocking_moby",
 		Status: mockingmoby.MockedPaused,
@@ -32,7 +33,7 @@ var (
 		Labels: map[string]string{"motto": "I'm not dead yet"},
 	}
 
-	furious_furuncle = mockingmoby.MockedContainer{
+	furiousFuruncle = mockingmoby.MockedContainer{
 		ID:     "6666666666",
 		Name:   "furious_furuncle",
 		Status: mockingmoby.MockedRunning,
@@ -41,43 +42,51 @@ var (
 	}
 )
 
-var _ = Describe("whalewatcher", func() {
+var _ = Describe("watcher (of whales, not: Wales)", func() {
+
+	var mm *mockingmoby.MockingMoby
+	var ww *watcher
+
+	BeforeEach(func() {
+		mm = mockingmoby.NewMockingMoby()
+		Expect(mm).NotTo(BeNil())
+		ww = NewWatcher(moby.NewMobyWatcher(mm)).(*watcher)
+		Expect(ww).NotTo(BeNil())
+	})
+
+	AfterEach(func() {
+		ww.Close()
+	})
+
+	It("returns the engine ID", func() {
+		Expect(ww.ID(context.Background())).NotTo(BeZero())
+	})
 
 	It("adds newborn container to our portfolio", func() {
-		mm := mockingmoby.NewMockingMoby()
-		ww := NewWhalewatcher(mm)
-		Expect(ww).NotTo(BeNil())
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 
-		ww.born(context.Background(), mocking_moby.ID)
+		ww.born(context.Background(), mockingMoby.ID)
 		ww.list(context.Background())
-		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mocking_moby.Name))
+		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 	})
 
 	It("removes dead container from our portfolio", func() {
-		mm := mockingmoby.NewMockingMoby()
-		ww := NewWhalewatcher(mm)
-		Expect(ww).NotTo(BeNil())
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 
-		ww.born(context.Background(), mocking_moby.ID)
-		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mocking_moby.Name))
+		ww.born(context.Background(), mockingMoby.ID)
+		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 
-		ww.demised(mocking_moby.ID, "")
+		ww.demised(mockingMoby.ID, "")
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(BeEmpty())
 	})
 
 	It("doesn't list zombies", func() {
-		mm := mockingmoby.NewMockingMoby()
-		ww := NewWhalewatcher(mm)
-		Expect(ww).NotTo(BeNil())
-
 		// Prime mocked moby and ensure that we find all containers in our
 		// portfolio, so we know the simple case works.
-		mm.AddContainer(mocking_moby)
-		mm.AddContainer(furious_furuncle)
+		mm.AddContainer(mockingMoby)
+		mm.AddContainer(furiousFuruncle)
 		ww.list(context.Background())
-		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mocking_moby.Name, furious_furuncle.Name))
+		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name, furiousFuruncle.Name))
 
 		// Now check that containers dying while the list is in progress don't
 		// get added to the portfolio, avoiding the portfolio getting filled
@@ -86,18 +95,15 @@ var _ = Describe("whalewatcher", func() {
 			context.Background(),
 			mockingmoby.ContainerListPost,
 			func(mockingmoby.HookKey) error {
-				mm.RemoveContainer(furious_furuncle.Name)
-				ww.demised(furious_furuncle.ID, "")
+				mm.RemoveContainer(furiousFuruncle.Name)
+				ww.demised(furiousFuruncle.ID, "")
 				return nil
 			}))
-		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mocking_moby.Name))
+		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 	})
 
 	It("doesn't crash for failed list", func() {
-		mm := mockingmoby.NewMockingMoby()
-		ww := NewWhalewatcher(mm)
-		Expect(ww).NotTo(BeNil())
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 
 		cctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -106,10 +112,7 @@ var _ = Describe("whalewatcher", func() {
 	})
 
 	It("binge watches", func() {
-		mm := mockingmoby.NewMockingMoby()
-		ww := NewWhalewatcher(mm)
-		Expect(ww).NotTo(BeNil())
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 
 		cctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
@@ -121,26 +124,23 @@ var _ = Describe("whalewatcher", func() {
 		portfolio := func() []string {
 			return ww.Portfolio().Project("").ContainerNames()
 		}
-		Eventually(portfolio).Should(ConsistOf(mocking_moby.Name))
+		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name))
 
-		mm.AddContainer(furious_furuncle)
-		Eventually(portfolio).Should(ConsistOf(mocking_moby.Name, furious_furuncle.Name))
+		mm.AddContainer(furiousFuruncle)
+		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name, furiousFuruncle.Name))
 
-		mm.RemoveContainer(furious_furuncle.ID)
-		Eventually(portfolio).Should(ConsistOf(mocking_moby.Name))
+		mm.RemoveContainer(furiousFuruncle.ID)
+		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name))
 
 		cancel()
 		Eventually(done).Should(BeClosed())
 	})
 
 	It("resynchronizes", func() {
-		mm := mockingmoby.NewMockingMoby()
-		ww := NewWhalewatcher(mm)
-		Expect(ww).NotTo(BeNil())
 		portfolio := func() []string {
 			return ww.Portfolio().Project("").ContainerNames()
 		}
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 
 		cctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
@@ -150,15 +150,15 @@ var _ = Describe("whalewatcher", func() {
 		}()
 		// Make sure that the watcher goroutine has properly started the event
 		// streaming...
-		Eventually(portfolio).Should(ConsistOf(mocking_moby.Name))
+		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name))
 
 		// ...before stopping events. Otherwise: nice safeguard panic (instead
 		// of deadlock).
 		mm.StopEvents()
-		Consistently(portfolio, "2s", "10ms").Should(ConsistOf(mocking_moby.Name))
+		Consistently(portfolio, "2s", "10ms").Should(ConsistOf(mockingMoby.Name))
 
-		mm.AddContainer(furious_furuncle)
-		Eventually(portfolio).Should(ConsistOf(mocking_moby.Name, furious_furuncle.Name))
+		mm.AddContainer(furiousFuruncle)
+		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name, furiousFuruncle.Name))
 
 		cancel()
 		Eventually(done).Should(BeClosed())
