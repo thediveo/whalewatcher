@@ -99,7 +99,7 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 		return nil, err
 	}
 	if details.State == nil || details.State.Pid == 0 {
-		return nil, fmt.Errorf("container '%s' has no initial process", nameorid)
+		return nil, fmt.Errorf("Docker container '%s' has no initial process", nameorid)
 	}
 	return &whalewatcher.Container{
 		ID:      details.ID,

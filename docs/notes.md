@@ -1,8 +1,10 @@
 # Technical Notes
 
-## Docker Container Properties
+## Docker
 
-### When Listing
+### Docker Container Properties
+
+#### When Listing Docker Containers
 
 The container "description"
 [types.Container](https://pkg.go.dev/github.com/docker/docker/api/types#Container)
@@ -33,7 +35,7 @@ when listing containers.
 > ⚠️ When listing, the returned information lacks certain pieces such as the PID
 > of a container's initial process.
 
-### When Inspecting
+#### When Inspecting Docker Containers
 
 The container details
 [types.ContainerJSON](https://pkg.go.dev/github.com/docker/docker/api/types#ContainerJSON)
@@ -60,19 +62,19 @@ when inspecting containers.
   ([container.Config](https://pkg.go.dev/github.com/docker/docker@v20.10.6+incompatible/api/types/container#Config)):
   - **Labels**: labels assigned to container.
 
-## Docker Events
+### Docker Events
 
 Events streaming from
 [Client.Events](https://pkg.go.dev/github.com/ph/moby/client#Client.Events) when
 watching whales. See also:
 [events.Message](https://pkg.go.dev/github.com/docker/docker/api/types/events#Message).
 
-### Event Timestamp
+#### Event Timestamp
 
 - **Time**: Unix epoch timestamp in seconds.
 - **TimeNano**: nanoseconds part of event timestamp.
 
-### Container Events
+#### Container Events
 
 - `id` and `Actor.ID`: container ID (not: name).
 - `Type`: "`container`"
@@ -93,3 +95,14 @@ watching whales. See also:
   - create
   - destroy
   - ...
+
+## containerd
+
+### containerd Events
+
+- `containerd.events.TaskStart`
+  - `container_id`
+  - `pid`
+- `containerd.events.TaskExit`
+  - `container_id`
+  - `pid`
