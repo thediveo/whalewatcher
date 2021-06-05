@@ -14,7 +14,9 @@
 
 package whalewatcher
 
-import "sync"
+import (
+	"sync"
+)
 
 // Portfolio represents all known composer projects, including the "zero"
 // (unnamed) project. The "zero" project has the zero name and contains all
@@ -27,8 +29,8 @@ type Portfolio struct {
 	m        sync.RWMutex
 }
 
-// newPortfolio returns a new Portfolio.
-func newPortfolio() *Portfolio {
+// NewPortfolio returns a new Portfolio.
+func NewPortfolio() *Portfolio {
 	pf := &Portfolio{
 		projects: make(map[string]*ComposerProject),
 	}
@@ -58,7 +60,8 @@ func (pf *Portfolio) Project(name string) *ComposerProject {
 	return pf.projects[name]
 }
 
-// ContainerTotal returns the total number of containers over all projects.
+// ContainerTotal returns the total number of containers over all projects,
+// including non-project "standalone" containers.
 func (pf *Portfolio) ContainerTotal() (total int) {
 	for _, project := range pf.projects {
 		total += len(project.containers)
@@ -66,9 +69,9 @@ func (pf *Portfolio) ContainerTotal() (total int) {
 	return
 }
 
-// add a container to the portfolio, creating also its composer project if that
+// Add a container to the portfolio, creating also its composer project if that
 // is not yet known.
-func (pf *Portfolio) add(cntr *Container) {
+func (pf *Portfolio) Add(cntr *Container) {
 	pf.m.Lock()
 	defer pf.m.Unlock()
 
@@ -84,12 +87,12 @@ func (pf *Portfolio) add(cntr *Container) {
 	proj.add(cntr)
 }
 
-// remove a container identified by its ID or name as well as its composer
+// Remove a container identified by its ID or name as well as its composer
 // project name from the portfolio, removing its composer project if it was the
 // only container left in the project.
 //
-// It's fine (no error) trying to to remove a non-existing container.
-func (pf *Portfolio) remove(nameorid string, project string) {
+// It's fine (no error) trying to to Remove a non-existing container.
+func (pf *Portfolio) Remove(nameorid string, project string) {
 	pf.m.Lock()
 	defer pf.m.Unlock()
 

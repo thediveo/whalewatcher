@@ -1,0 +1,66 @@
+@startuml whalewatcher
+hide empty members
+
+package whalewatcher {
+
+    class Portfolio {
+        Names(): []string
+        Project(name: string): *ComposerProject
+    }
+
+    class ComposerProject {
+        Name: string
+        Containers(): []*Container
+        ContainerNames(): []string
+        Container(id: string): *Container
+    }
+
+    Portfolio -> "  1+" ComposerProject : "projects"
+
+    class Container {
+        ID: string
+        Name: string
+        Labels: map[string]string
+        PID: int
+        Project: string
+        ProjectName(): string
+    }
+
+    ComposerProject -> " *" Container : "Containers"
+    ComposerProject <- Container : "Project"
+
+}
+
+package whalewatcher.watcher {
+
+    note "NewWatcher(engineclient.EngineClient): Watcher" as N1
+    N1 .. Watcher
+
+    interface Watcher {
+        Portfolio(): *whalewatcher.Portfolio
+        Watch(ctx)
+        ID(ctx)
+        Close()
+    }
+
+    Watcher --> Portfolio : Portfolio
+
+}
+
+whalewatcher.watcher -[hidden]- whalewatcher
+
+package whalewatcher.engineclient {
+
+    interface EngineClient {
+        List(ctx): []*whalewatcher.Container, error
+        Inspect(ctx, id): *whalewatcher.Container, error
+        LifecycleEvents(ctx) <-chan ContainerEvent, <-chan error
+        ID(ctx) string
+        Close()
+    }
+
+}
+
+N1 ..> EngineClient
+
+@enduml

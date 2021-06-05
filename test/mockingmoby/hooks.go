@@ -19,6 +19,7 @@ import "context"
 // HookKey identifies a particular API pre or post hook.
 type HookKey string
 
+// The available API pre/post hook keys.
 const (
 	ContainerListPre     = HookKey("containerlistpre")
 	ContainerListPost    = HookKey("containerlistpost")

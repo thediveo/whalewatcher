@@ -35,26 +35,26 @@ var _ = Describe("lists mocked containers", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cntrs).To(HaveLen(0))
 
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 		cntrs, err = mm.ContainerList(context.Background(), types.ContainerListOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cntrs).To(HaveLen(1))
 		c := cntrs[0]
-		Expect(c.ID).To(Equal(mocking_moby.ID))
-		Expect(c.Names).To(Equal([]string{"/" + mocking_moby.Name}))
-		Expect(c.Labels).To(Equal(mocking_moby.Labels))
-		Expect(c.Status).To(Equal(MockedStatus[mocking_moby.Status]))
+		Expect(c.ID).To(Equal(mockingMoby.ID))
+		Expect(c.Names).To(Equal([]string{"/" + mockingMoby.Name}))
+		Expect(c.Labels).To(Equal(mockingMoby.Labels))
+		Expect(c.Status).To(Equal(MockedStatus[mockingMoby.Status]))
 
-		mm.AddContainer(furious_furuncle)
+		mm.AddContainer(furiousFuruncle)
 		cntrs, err = mm.ContainerList(context.Background(), types.ContainerListOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cntrs).To(HaveLen(2))
 		Expect(cntrs).To(ConsistOf(
 			MatchFields(IgnoreExtras, Fields{
-				"ID": Equal(mocking_moby.ID),
+				"ID": Equal(mockingMoby.ID),
 			}),
 			MatchFields(IgnoreExtras, Fields{
-				"ID": Equal(furious_furuncle.ID),
+				"ID": Equal(furiousFuruncle.ID),
 			}),
 		))
 	})

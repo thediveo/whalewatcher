@@ -15,7 +15,6 @@
 package whalewatcher
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -29,36 +28,18 @@ import (
 // container process(es) or are just yet created and thus still without any
 // container process(es).
 type Container struct {
-	ID     string            // unique identifier of this container.
-	Name   string            // user-friendly name of this container.
-	Labels map[string]string // labels assigned to this container.
-	PID    int               // PID of container's initial ("ealdorman") process.
-}
-
-// newContainer returns a new container object for the container with the given
-// name or ID, based on information retrieved from the Docker engine by
-// inspecting the container details.
-func newContainer(ctx context.Context, moby MobyAPIClient, nameorid string) (*Container, error) {
-	details, err := moby.ContainerInspect(ctx, nameorid)
-	if err != nil {
-		return nil, err
-	}
-	if details.State == nil || details.State.Pid == 0 {
-		return nil, fmt.Errorf("container '%s' has no initial process", nameorid)
-	}
-	return &Container{
-		ID:     details.ID,
-		Name:   details.Name[1:], // get rid off the leading slash
-		Labels: details.Config.Labels,
-		PID:    details.State.Pid,
-	}, nil
+	ID      string            // unique identifier of this container.
+	Name    string            // user-friendly name of this container.
+	Labels  map[string]string // labels assigned to this container.
+	PID     int               // PID of container's initial ("ealdorman") process.
+	Project string            // optional composer project name, or zero.
 }
 
 // ProjectName returns the name of the composer project for this container, if
 // any; otherwise, it returns "" if a container isn't associated with a composer
 // project.
 func (c Container) ProjectName() string {
-	return c.Labels[ComposerProjectLabel]
+	return c.Project
 }
 
 // String renders a textual representation of the information kept about a

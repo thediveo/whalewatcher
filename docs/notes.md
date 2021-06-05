@@ -1,8 +1,10 @@
 # Technical Notes
 
-## Container Properties
+## Docker
 
-### When Listing
+### Docker Container Properties
+
+#### When Listing Docker Containers
 
 The container "description"
 [types.Container](https://pkg.go.dev/github.com/docker/docker/api/types#Container)
@@ -33,7 +35,7 @@ when listing containers.
 > ⚠️ When listing, the returned information lacks certain pieces such as the PID
 > of a container's initial process.
 
-### When Inspecting
+#### When Inspecting Docker Containers
 
 The container details
 [types.ContainerJSON](https://pkg.go.dev/github.com/docker/docker/api/types#ContainerJSON)
@@ -60,19 +62,19 @@ when inspecting containers.
   ([container.Config](https://pkg.go.dev/github.com/docker/docker@v20.10.6+incompatible/api/types/container#Config)):
   - **Labels**: labels assigned to container.
 
-## Docker Events
+### Docker Events
 
 Events streaming from
 [Client.Events](https://pkg.go.dev/github.com/ph/moby/client#Client.Events) when
 watching whales. See also:
 [events.Message](https://pkg.go.dev/github.com/docker/docker/api/types/events#Message).
 
-### Event Timestamp
+#### Event Timestamp
 
 - **Time**: Unix epoch timestamp in seconds.
 - **TimeNano**: nanoseconds part of event timestamp.
 
-### Container Events
+#### Container Events
 
 - `id` and `Actor.ID`: container ID (not: name).
 - `Type`: "`container`"
@@ -93,3 +95,33 @@ watching whales. See also:
   - create
   - destroy
   - ...
+
+## containerd
+
+### containerd Events
+
+The events sent by `containerd` are of included in an "envelope" of type
+`events.Envelope`:
+
+- `Timestamp`
+- `Namespace`: string, namespace name.
+- `Topic`: string, event topic, such as `/tasks/start`.
+- `Event`: needs to be unmarshalled explicitly using
+  `typeurl.UnmarshalAny(ev.Event)`; for this to work, the required event types
+  from containerd's event API must have been registered by:
+
+  ```golang
+  import _ "github.com/containerd/containerd/api/events"
+  ```
+
+Depending on the `Topic`, the following Event types are seen; please note that
+we use containerd's filter syntax here for specifying the topic, so that's
+lowercase `topic` and the specific topic itself needs to be placed in double
+quotes.
+
+- `topic=="/tasks/start"`: `*events.TaskStart`
+  - `container_id`
+  - `pid`
+- `topic=="/tasks/exit"`: `*events.TaskExit`
+  - `container_id`
+  - `pid`
