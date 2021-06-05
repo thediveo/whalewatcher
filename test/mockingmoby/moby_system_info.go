@@ -18,20 +18,12 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/registry"
 )
 
-// RegistryLogin is not implemented.
-func (mm *MockingMoby) RegistryLogin(ctx context.Context, auth types.AuthConfig) (registry.AuthenticateOKBody, error) {
-	return registry.AuthenticateOKBody{}, errNotImplemented
-}
-
-// DiskUsage is not implemented.
-func (mm *MockingMoby) DiskUsage(ctx context.Context) (types.DiskUsage, error) {
-	return types.DiskUsage{}, errNotImplemented
-}
-
-// Ping is not implemented.
-func (mm *MockingMoby) Ping(ctx context.Context) (types.Ping, error) {
-	return types.Ping{}, errNotImplemented
+// Info returns engine information, consisting only of a fake engine ID, but
+// nothing else.
+func (mm *MockingMoby) Info(ctx context.Context) (types.Info, error) {
+	return types.Info{
+		ID: "MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY",
+	}, nil
 }

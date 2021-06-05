@@ -20,10 +20,6 @@ import (
 	"sync"
 )
 
-// ComposerProjectLabel is the name of an optional container label identifying
-// the composer project a container is part of.
-const ComposerProjectLabel = "com.docker.compose.project"
-
 // ComposerProject represents a set of (running or paused, yet somehow alive)
 // containers belonging to a specific Docker Compose/Composer project.
 //

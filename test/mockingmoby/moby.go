@@ -46,7 +46,7 @@ type MockingMoby struct {
 // Ensure that all service API methods have been implemented.
 var _ *MockingMoby = (*MockingMoby)(nil)
 
-// MockingMoby returns a new instance of a mock Docker client.
+// NewMockingMoby returns a new instance of a mock Docker client.
 func NewMockingMoby() *MockingMoby {
 	return &MockingMoby{
 		containers: map[string]MockedContainer{},

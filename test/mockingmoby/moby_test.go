@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	mocking_moby = MockedContainer{
+	mockingMoby = MockedContainer{
 		ID:     "1234567890",
 		Name:   "mocking_moby",
 		Status: MockedCreated,
@@ -28,7 +28,7 @@ var (
 		Labels: map[string]string{"motto": "I'm not dead yet"},
 	}
 
-	furious_furuncle = MockedContainer{
+	furiousFuruncle = MockedContainer{
 		ID:     "6666666666",
 		Name:   "furious_furuncle",
 		Status: MockedRunning,
@@ -36,7 +36,7 @@ var (
 		Labels: map[string]string{"foo": "bar"},
 	}
 
-	pausing_pm = MockedContainer{
+	pausingPm = MockedContainer{
 		ID:     "10",
 		Name:   "pausing_pm",
 		Status: MockedPaused,
@@ -50,20 +50,20 @@ var _ = Describe("mockingmoby", func() {
 	It("looks up container by name or ID", func() {
 		mm := NewMockingMoby()
 		defer mm.Close()
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 
 		_, ok := mm.lookup("foo")
 		Expect(ok).To(BeFalse())
 
-		c, ok := mm.lookup(mocking_moby.ID)
+		c, ok := mm.lookup(mockingMoby.ID)
 		Expect(ok).To(BeTrue())
 		Expect(c).NotTo(BeNil())
-		Expect(c.ID).To(Equal(mocking_moby.ID))
+		Expect(c.ID).To(Equal(mockingMoby.ID))
 
-		c, ok = mm.lookup(mocking_moby.Name)
+		c, ok = mm.lookup(mockingMoby.Name)
 		Expect(ok).To(BeTrue())
 		Expect(c).NotTo(BeNil())
-		Expect(c.ID).To(Equal(mocking_moby.ID))
+		Expect(c.ID).To(Equal(mockingMoby.ID))
 	})
 
 })

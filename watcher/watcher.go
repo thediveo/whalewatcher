@@ -12,72 +12,124 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package whalewatcher
+package watcher
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
+	"github.com/thediveo/whalewatcher"
+	"github.com/thediveo/whalewatcher/engineclient"
 )
 
-// MobyAPIClient is a Docker client offering the container and system APIs. For
-// production, Docker's client.Client is a compatible implementation, for unit
-// testing our very own mockingmoby.MockingMoby.
-type MobyAPIClient interface {
-	client.ContainerAPIClient
-	client.SystemAPIClient
+// Watcher allows keeping track of the currently alive containers of a container
+// engine, optionally with the composer projects they're associated with (if
+// supported).
+type Watcher interface {
+	// Portfolio returns the current portfolio for reading. During
+	// resynchronization with a container engine this can be the buffered
+	// portfolio until the watcher has caught up with the new state after an
+	// engine reconnect. For this reason callers must not keep the returned
+	// Portfolio reference for longer periods of time, but just for what they
+	// immediately need to query a Portfolio for.
+	Portfolio() *whalewatcher.Portfolio
+	// Ready returns a channel that gets closed after the initial
+	// synchronization has been achieved. Watcher clients do not need to wait
+	// for the Ready channel to get closed to work with the portfolio; this just
+	// helps those applications that need to wait for results as opposed to take
+	// whatever information currently is available, or not.
+	Ready() <-chan struct{}
+	// Watch synchronizes the Portfolio to the connected container engine's
+	// state with respect to alive containers and then continuously watches for
+	// changes. Watch only returns after the specified context has been
+	// cancelled. It will automatically reconnect in case of loss of connection
+	// to the connected container engine.
+	Watch(ctx context.Context)
+	// ID returns the (more or less) unique engine identifier; the exact format
+	// is engine-specific.
+	ID(ctx context.Context) string
+	// Close cleans up and release any engine client resources, if necessary.
+	Close()
 }
 
-// Whalewatcher watches a Docker daemon for containers to become alive and later
+// watcher watches a Docker daemon for containers to become alive and later
 // die, keeping track as well as automatically synchronizing at start and after
 // reconnects. Please note that not the whole container lifecycle gets monitored
 // but only the phase(s) where a container has either running or frozen
 // container processes.
-type Whalewatcher struct {
-	moby MobyAPIClient
+type watcher struct {
+	engine engineclient.EngineClient // container engine (adaptor)
 
-	pfmux          sync.RWMutex
-	readportfolio  *Portfolio // portfolio as seen by object users
-	writeportfolio *Portfolio // portfolio we're updating
+	pfmux          sync.RWMutex            // supports make-before-break during resync.
+	readportfolio  *whalewatcher.Portfolio // portfolio as seen by object users.
+	writeportfolio *whalewatcher.Portfolio // portfolio we're updating.
 
 	eventgate      sync.Mutex // not a RWMutex as it doesn't buy us anything here.
 	ongoinglisting bool       // a container list is in progress.
 	bluenorwegians []string   // container IDs we know to have died while list in progress.
+
+	once  sync.Once     // "protects" the ready channel
+	ready chan struct{} // ready channel signal
 }
 
-// NewWhalewatcher returns a new Whalewatcher watching for containers to come
-// alive or die using the specified Docker API client.
-func NewWhalewatcher(moby MobyAPIClient) *Whalewatcher {
-	pf := newPortfolio()
-	return &Whalewatcher{
-		moby:           moby,
+// NewWatcher returns a new Watcher tracking alive containers as they come and
+// go, using the specified container EngineClient.
+func NewWatcher(engine engineclient.EngineClient) Watcher {
+	pf := whalewatcher.NewPortfolio()
+	return &watcher{
+		engine:         engine,
 		readportfolio:  pf,
 		writeportfolio: pf,
+		ready:          make(chan struct{}),
 	}
 }
 
-func (ww *Whalewatcher) Portfolio() *Portfolio {
+// Portfolio returns the current portfolio for reading. During resynchronization
+// with a container engine this can be the buffered portfolio until the watcher
+// has caught up with the new state after an engine reconnect. For this reason
+// callers must not keep the returned Portfolio reference for longer periods of
+// time, but just for what they immediately need to query a Portfolio for.
+func (ww *watcher) Portfolio() *whalewatcher.Portfolio {
 	ww.pfmux.RLock()
 	defer ww.pfmux.RUnlock()
 	return ww.readportfolio
 }
 
-func (ww *Whalewatcher) Watch(ctx context.Context) {
-	evfilters := filters.NewArgs(
-		filters.KeyValuePair{Key: "type", Value: "container"},
-		filters.KeyValuePair{Key: "event", Value: "start"},
-		filters.KeyValuePair{Key: "event", Value: "die"})
+// Ready returns a channel that gets closed after the initial
+// synchronization has been achieved. Watcher clients do not need to wait
+// for the Ready channel to get closed to work with the portfolio; this just
+// helps those applications that need to wait for results as opposed to take
+// whatever information currently is available, or not.
+func (ww *watcher) Ready() <-chan struct{} {
+	return ww.ready
+}
+
+// ID returns the (more or less) unique engine identifier; the exact format is
+// engine-specific.
+func (ww *watcher) ID(ctx context.Context) string {
+	return ww.engine.ID(ctx)
+}
+
+// Close cleans up and release any underlying engine client resources, if
+// necessary.
+func (ww *watcher) Close() {
+	ww.engine.Close()
+}
+
+// Watch synchronizes the Portfolio to the connected container engine's state
+// with respect to alive containers and then continuously watches for changes.
+// Watch only returns after the specified context has been cancelled. It will
+// automatically reconnect in case of loss of connection to the connected
+// container engine.
+func (ww *watcher) Watch(ctx context.Context) {
 	for {
 		// In case we have an existing and non-empty portfolio, keep that
 		// visible to our users while we try to synchronize. If not, then simply
 		// go "live" immediately.
 		ww.pfmux.Lock()
 		if ww.writeportfolio.ContainerTotal() != 0 {
-			ww.writeportfolio = newPortfolio()
+			ww.writeportfolio = whalewatcher.NewPortfolio()
 		}
 		if ww.readportfolio.ContainerTotal() == 0 {
 			ww.readportfolio = ww.writeportfolio
@@ -85,7 +137,7 @@ func (ww *Whalewatcher) Watch(ctx context.Context) {
 		ww.pfmux.Unlock()
 		// Start receiving container-related events and also fire off a list of
 		// containers query.
-		evs, errs := ww.moby.Events(ctx, types.EventsOptions{Filters: evfilters})
+		evs, errs := ww.engine.LifecycleEvents(ctx)
 		go func() {
 			ww.list(ctx)
 			// Bring the synchronized portfolio "online" so that object users
@@ -108,11 +160,10 @@ func (ww *Whalewatcher) Watch(ctx context.Context) {
 				}
 				break listentoevents
 			case ev := <-evs:
-				switch ev.Action {
-				case "start":
-					ww.born(ctx, ev.Actor.ID)
-				case "die":
-					ww.demised(ev.Actor.ID, ev.Actor.Attributes[ComposerProjectLabel])
+				if ev.Born {
+					ww.born(ctx, ev.ID)
+				} else {
+					ww.demised(ev.ID, ev.Project)
 				}
 			}
 		}
@@ -133,8 +184,8 @@ func (ww *Whalewatcher) Watch(ctx context.Context) {
 // (such as container's initial process PID, project, ...).
 //
 // Note bene: this is just a thin wrapper to mainly ease unit testing.
-func (ww *Whalewatcher) born(ctx context.Context, id string) {
-	cntr, err := newContainer(ctx, ww.moby, id)
+func (ww *watcher) born(ctx context.Context, id string) {
+	cntr, err := ww.engine.Inspect(ctx, id)
 	if err == nil {
 		// The portfolio already properly handles concurrency operations, so we
 		// don't need to take any special care here. However, as we're
@@ -144,14 +195,14 @@ func (ww *Whalewatcher) born(ctx context.Context, id string) {
 		ww.pfmux.RLock()
 		pf := ww.writeportfolio
 		ww.pfmux.RUnlock()
-		pf.add(cntr)
+		pf.Add(cntr)
 	}
 }
 
 // demised removes the "permanently sleeping" container with the specified ID
 // from our container portfolio, ensuring it won't pop up again due to an
 // overlapping list scan.
-func (ww *Whalewatcher) demised(id string, projectname string) {
+func (ww *watcher) demised(id string, projectname string) {
 	// The "event gate" does not only serializes access to the shared state
 	// between the container lifecycle event handler and the container listing
 	// one-shot go routine, it also serializes container termination lifecycle
@@ -173,12 +224,12 @@ func (ww *Whalewatcher) demised(id string, projectname string) {
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
-	pf.remove(id, projectname)
+	pf.Remove(id, projectname)
 }
 
 // list scans for currently alive and kicking containers and then adds the
 // containers found to our container portfolio.
-func (ww *Whalewatcher) list(ctx context.Context) {
+func (ww *watcher) list(ctx context.Context) {
 	// In case any container(s) die while our container list is in progress,
 	// make sure to pile up their IDs so we later can skip any already dead
 	// containers. This is necessary as while container lifecycle-related events
@@ -191,16 +242,10 @@ func (ww *Whalewatcher) list(ctx context.Context) {
 	// Now try to scan the currently available containers and take only the
 	// alive into further consideration. This is a potentially lengthy
 	// operation, as we need to inspect each potential candidate individually
-	// due to the way the Docker daemon's API is designed.
-	containers, err := ww.moby.ContainerList(ctx, types.ContainerListOptions{})
+	// due to the way container engine APIs tend to be designed.
+	alives, err := ww.engine.List(ctx)
 	if err != nil {
 		return // list? what list??
-	}
-	alives := make([]*Container, 0, len(containers))
-	for _, container := range containers {
-		if alive, err := newContainer(ctx, ww.moby, container.ID); err == nil {
-			alives = append(alives, alive)
-		}
 	}
 	// We now lock out any competing container demise events so we can update
 	// the portfolio from the list scan results atomically, but still taking
@@ -211,13 +256,16 @@ func (ww *Whalewatcher) list(ctx context.Context) {
 		ww.bluenorwegians = []string{}
 		ww.ongoinglisting = false // not strictly necessary here, but anywhere within the gated zone.
 		ww.eventgate.Unlock()
+		ww.once.Do(func() {
+			close(ww.ready)
+		})
 	}()
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
 nextpet:
 	for _, alive := range alives {
-		// Did the container die inbetween...? Then skip it and get another pet.
+		// Did the container die in between...? Then skip it and get another pet.
 		for _, bluenorwegian := range ww.bluenorwegians {
 			if bluenorwegian == alive.ID {
 				continue nextpet
@@ -226,7 +274,7 @@ nextpet:
 		// Otherwise, add it to our portfolio; this is "quick" operation without
 		// any trips to the container engine (we already did the "slow" and
 		// time-consuming bits before).
-		pf.add(alive)
+		pf.Add(alive)
 	}
-	// Clear list of dead parrots and carry on.
+	// Tumble into defer'red clearing the list of dead parrots and carrying on.
 }

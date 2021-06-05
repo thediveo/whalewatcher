@@ -36,52 +36,52 @@ var _ = Describe("mocked event streaming", func() {
 		Expect(evs).NotTo(BeNil())
 		Expect(errs).NotTo(BeNil())
 
-		mm.AddContainer(mocking_moby)
+		mm.AddContainer(mockingMoby)
 		Consistently(evs).ShouldNot(Receive())
 		Consistently(errs).ShouldNot(Receive())
 
-		mm.AddContainer(furious_furuncle)
+		mm.AddContainer(furiousFuruncle)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Type":   Equal(events.ContainerEventType),
 			"Action": Equal("start"),
 			"Scope":  Equal("local"),
 			"Actor": MatchFields(IgnoreExtras, Fields{
-				"ID": Equal(furious_furuncle.ID),
+				"ID": Equal(furiousFuruncle.ID),
 				"Attributes": And(
-					HaveKeyWithValue("name", furious_furuncle.Name),
+					HaveKeyWithValue("name", furiousFuruncle.Name),
 					HaveKeyWithValue("foo", "bar"),
 				),
 			}),
 		})))
 		Consistently(errs).ShouldNot(Receive())
 
-		mm.RemoveContainer(furious_furuncle.ID)
+		mm.RemoveContainer(furiousFuruncle.ID)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Type":   Equal(events.ContainerEventType),
 			"Action": Equal("die"),
 			"Scope":  Equal("local"),
 			"Actor": MatchFields(IgnoreExtras, Fields{
-				"ID": Equal(furious_furuncle.ID),
+				"ID": Equal(furiousFuruncle.ID),
 				"Attributes": And(
-					HaveKeyWithValue("name", furious_furuncle.Name),
+					HaveKeyWithValue("name", furiousFuruncle.Name),
 					HaveKeyWithValue("foo", "bar"),
 				),
 			}),
 		})))
 		Consistently(errs).ShouldNot(Receive())
 
-		mm.AddContainer(furious_furuncle)
+		mm.AddContainer(furiousFuruncle)
 		Eventually(evs).Should(Receive())
 		Consistently(errs).ShouldNot(Receive())
-		mm.StopContainer(furious_furuncle.ID)
+		mm.StopContainer(furiousFuruncle.ID)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Action": Equal("die"),
 			"Actor": MatchFields(IgnoreExtras, Fields{
-				"ID": Equal(furious_furuncle.ID),
+				"ID": Equal(furiousFuruncle.ID),
 			}),
 		})))
 		Consistently(errs).ShouldNot(Receive())
-		mm.StopContainer(furious_furuncle.ID)
+		mm.StopContainer(furiousFuruncle.ID)
 		Consistently(evs).ShouldNot(Receive())
 		Consistently(errs).ShouldNot(Receive())
 
@@ -100,7 +100,7 @@ var _ = Describe("mocked event streaming", func() {
 		mm.StopEvents()
 		Eventually(errs).Should(Receive(Equal(ErrEventStreamStopped)))
 
-		mm.AddContainer(furious_furuncle)
+		mm.AddContainer(furiousFuruncle)
 		Consistently(evs).ShouldNot(Receive())
 	})
 

@@ -18,6 +18,7 @@ package mockingmoby
 // Docker's types.ContainerStatus.
 type MockedContainerStatus int
 
+// The available states of a mocked container.
 const (
 	MockedCreated MockedContainerStatus = iota
 	MockedRunning

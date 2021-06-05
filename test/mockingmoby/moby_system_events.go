@@ -22,6 +22,8 @@ import (
 	"github.com/docker/docker/api/types/events"
 )
 
+// ErrEventStreamStopped is the error send via the error stream after invoking
+// StopEvents on a MockingMoby.
 var ErrEventStreamStopped = errors.New("event stream stopped")
 
 // Events returns a stream of fake events. It ignores all options, but checks
