@@ -60,7 +60,8 @@ func (pf *Portfolio) Project(name string) *ComposerProject {
 	return pf.projects[name]
 }
 
-// ContainerTotal returns the total number of containers over all projects.
+// ContainerTotal returns the total number of containers over all projects,
+// including non-project "standalone" containers.
 func (pf *Portfolio) ContainerTotal() (total int) {
 	for _, project := range pf.projects {
 		total += len(project.containers)

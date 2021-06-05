@@ -1,6 +1,6 @@
 /*
 
-Package containerd provides a container Watcher working with containerd engines.
+Package containerd provides a container Watcher for containerd engines.
 
 Usage
 

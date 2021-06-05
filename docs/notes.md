@@ -100,9 +100,28 @@ watching whales. See also:
 
 ### containerd Events
 
-- `containerd.events.TaskStart`
+The events sent by `containerd` are of included in an "envelope" of type
+`events.Envelope`:
+
+- `Timestamp`
+- `Namespace`: string, namespace name.
+- `Topic`: string, event topic, such as `/tasks/start`.
+- `Event`: needs to be unmarshalled explicitly using
+  `typeurl.UnmarshalAny(ev.Event)`; for this to work, the required event types
+  from containerd's event API must have been registered by:
+
+  ```golang
+  import _ "github.com/containerd/containerd/api/events"
+  ```
+
+Depending on the `Topic`, the following Event types are seen; please note that
+we use containerd's filter syntax here for specifying the topic, so that's
+lowercase `topic` and the specific topic itself needs to be placed in double
+quotes.
+
+- `topic=="/tasks/start"`: `*events.TaskStart`
   - `container_id`
   - `pid`
-- `containerd.events.TaskExit`
+- `topic=="/tasks/exit"`: `*events.TaskExit`
   - `container_id`
   - `pid`

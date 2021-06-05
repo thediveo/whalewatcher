@@ -1,7 +1,7 @@
 /*
 
-Package engineclient organizes container engine-specific clients into
-sub-packages.
+Package engineclient provides container engine-specific EngineClient
+implementations in its sub-packages.
 
 */
 package engineclient

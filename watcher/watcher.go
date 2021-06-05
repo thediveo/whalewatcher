@@ -27,10 +27,29 @@ import (
 // engine, optionally with the composer projects they're associated with (if
 // supported).
 type Watcher interface {
+	// Portfolio returns the current portfolio for reading. During
+	// resynchronization with a container engine this can be the buffered
+	// portfolio until the watcher has caught up with the new state after an
+	// engine reconnect. For this reason callers must not keep the returned
+	// Portfolio reference for longer periods of time, but just for what they
+	// immediately need to query a Portfolio for.
 	Portfolio() *whalewatcher.Portfolio
+	// Ready returns a channel that gets closed after the initial
+	// synchronization has been achieved. Watcher clients do not need to wait
+	// for the Ready channel to get closed to work with the portfolio; this just
+	// helps those applications that need to wait for results as opposed to take
+	// whatever information currently is available, or not.
+	Ready() <-chan struct{}
+	// Watch synchronizes the Portfolio to the connected container engine's
+	// state with respect to alive containers and then continuously watches for
+	// changes. Watch only returns after the specified context has been
+	// cancelled. It will automatically reconnect in case of loss of connection
+	// to the connected container engine.
 	Watch(ctx context.Context)
+	// ID returns the (more or less) unique engine identifier; the exact format
+	// is engine-specific.
 	ID(ctx context.Context) string
-
+	// Close cleans up and release any engine client resources, if necessary.
 	Close()
 }
 
@@ -49,6 +68,9 @@ type watcher struct {
 	eventgate      sync.Mutex // not a RWMutex as it doesn't buy us anything here.
 	ongoinglisting bool       // a container list is in progress.
 	bluenorwegians []string   // container IDs we know to have died while list in progress.
+
+	once  sync.Once     // "protects" the ready channel
+	ready chan struct{} // ready channel signal
 }
 
 // NewWatcher returns a new Watcher tracking alive containers as they come and
@@ -59,6 +81,7 @@ func NewWatcher(engine engineclient.EngineClient) Watcher {
 		engine:         engine,
 		readportfolio:  pf,
 		writeportfolio: pf,
+		ready:          make(chan struct{}),
 	}
 }
 
@@ -71,6 +94,15 @@ func (ww *watcher) Portfolio() *whalewatcher.Portfolio {
 	ww.pfmux.RLock()
 	defer ww.pfmux.RUnlock()
 	return ww.readportfolio
+}
+
+// Ready returns a channel that gets closed after the initial
+// synchronization has been achieved. Watcher clients do not need to wait
+// for the Ready channel to get closed to work with the portfolio; this just
+// helps those applications that need to wait for results as opposed to take
+// whatever information currently is available, or not.
+func (ww *watcher) Ready() <-chan struct{} {
+	return ww.ready
 }
 
 // ID returns the (more or less) unique engine identifier; the exact format is
@@ -224,6 +256,9 @@ func (ww *watcher) list(ctx context.Context) {
 		ww.bluenorwegians = []string{}
 		ww.ongoinglisting = false // not strictly necessary here, but anywhere within the gated zone.
 		ww.eventgate.Unlock()
+		ww.once.Do(func() {
+			close(ww.ready)
+		})
 	}()
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio

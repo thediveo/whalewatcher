@@ -121,10 +121,15 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 			close(done)
 		}()
 
+		// Pass ww.Ready, not its result: wait for the initial synchronization
+		// to be done and the initial discovery results having just come in.
+		Eventually(ww.Ready).Should(BeClosed())
+
+		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
+
 		portfolio := func() []string {
 			return ww.Portfolio().Project("").ContainerNames()
 		}
-		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name))
 
 		mm.AddContainer(furiousFuruncle)
 		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name, furiousFuruncle.Name))
