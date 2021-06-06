@@ -108,10 +108,13 @@ func (p *ComposerProject) add(c *Container) {
 			// A container by this name already exists, so remove the old
 			// "version", potentially updating the ID and other bits of
 			// information. As we don't care about order, erm, container order,
-			// that is, we do an optimized slice delete, see also:
+			// we do an optimized slice delete, see also:
 			// https://github.com/golang/go/wiki/SliceTricks#delete-without-preserving-order
-			p.containers[idx] = p.containers[len(p.containers)-1]
-			p.containers = p.containers[:len(p.containers)-1]
+			// Make sure to help the garbage collector by freeing the final
+			// slice slot before shortening the slice.
+			last := len(p.containers) - 1
+			p.containers[idx], p.containers[last] = p.containers[last], nil
+			p.containers = p.containers[:last]
 			break
 		}
 	}
