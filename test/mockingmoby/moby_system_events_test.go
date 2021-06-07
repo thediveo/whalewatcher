@@ -55,6 +55,38 @@ var _ = Describe("mocked event streaming", func() {
 		})))
 		Consistently(errs).ShouldNot(Receive())
 
+		mm.PauseContainer(furiousFuruncle.Name)
+		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
+			"Type":   Equal(events.ContainerEventType),
+			"Action": Equal("pause"),
+			"Scope":  Equal("local"),
+			"Actor": MatchFields(IgnoreExtras, Fields{
+				"ID": Equal(furiousFuruncle.ID),
+				"Attributes": And(
+					HaveKeyWithValue("name", furiousFuruncle.Name),
+					HaveKeyWithValue("foo", "bar"),
+				),
+			}),
+		})))
+		mm.PauseContainer(furiousFuruncle.Name)
+		Consistently(evs).ShouldNot(Receive())
+
+		mm.UnpauseContainer(furiousFuruncle.Name)
+		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
+			"Type":   Equal(events.ContainerEventType),
+			"Action": Equal("unpause"),
+			"Scope":  Equal("local"),
+			"Actor": MatchFields(IgnoreExtras, Fields{
+				"ID": Equal(furiousFuruncle.ID),
+				"Attributes": And(
+					HaveKeyWithValue("name", furiousFuruncle.Name),
+					HaveKeyWithValue("foo", "bar"),
+				),
+			}),
+		})))
+		mm.UnpauseContainer(furiousFuruncle.Name)
+		Consistently(evs).ShouldNot(Receive())
+
 		mm.RemoveContainer(furiousFuruncle.ID)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Type":   Equal(events.ContainerEventType),

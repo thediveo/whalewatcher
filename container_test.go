@@ -48,6 +48,17 @@ var _ = Describe("container proxy", func() {
 		Expect(c.String()).To(MatchRegexp(
 			fmt.Sprintf(`container '%s'/%s from project 'gnampf' with PID %d`,
 				"poehser_puhbe", pp, pppid)))
+
+		// ignoring our own rule of Container being immutable for this unit test...
+		c.Name = c.ID
+		Expect(c.String()).To(MatchRegexp(
+			fmt.Sprintf(`container '%s' from project 'gnampf' with PID %d`,
+				c.ID, pppid)))
+
+		c.Paused = true
+		Expect(c.String()).To(MatchRegexp(
+			fmt.Sprintf(`paused container '%s' from project 'gnampf' with PID %d`,
+				c.ID, pppid)))
 	})
 
 })

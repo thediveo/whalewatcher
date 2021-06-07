@@ -2,18 +2,24 @@
 
 Package whalewatcher watches Docker and containerd containers as they come and
 go from the perspective of containers that are "alive", that is, only those
-containers with actual processes. "Dead" (that is, stopped) containers without
-any processes are not tracked. Additionally, this package understands how such
-containers optionally are organized into composer projects (Docker composer,
-https://github.com/docker/compose).
+containers with actual processes. In contrast, freshly created or "dead"
+containers without any processes are not tracked.
 
-As the focus is on containers that are either in running or paused states, the
-envisioned use cases are thus tools that somehow interact with processes of
-these "alive" containers, especially via various elements of the proc
-filesystem.
+Furthermore, this package understands how containers optionally are organized
+into composer projects (Docker composer, https://github.com/docker/compose).
+Please note that full nerdctl project-awareness currently is blocked by issue
+#241 (https://github.com/containerd/nerdctl/issues/241).
 
-In order to cause as low system load as possible this module monitors the
+As the focus of this module is on containers that are either in running or
+paused states, the envisioned use cases are tools that solely interact with
+processes, Linux-kernel namespaces, et cetera of these containers (often via
+various elements of the proc filesystem).
+
+In order to cause only as low system load as possible this module monitors the
 container engine's container lifecycle-related events instead of stupid polling.
+However, if your application wants to immediately react on such events, then
+this package is not suitable. Instead, it decouples an application's access to
+the current state from tracking this container state.
 
 Watcher
 

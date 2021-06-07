@@ -12,34 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mockingmoby
+package watcher
 
 import (
-	"context"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/thediveo/errxpect"
 )
 
-var _ = Describe("informs", func() {
+var _ = Describe("pause state queue", func() {
 
-	It("returns mocked engine information", func() {
-		mm := NewMockingMoby()
-		defer mm.Close()
-		info, err := mm.Info(context.Background())
-		Expect(err).NotTo(HaveOccurred())
-		Expect(info.ID).To(HaveLen(6*(4+1+4+1) - 1))
+	It("never adds twice", func() {
+		q := pendingPauseStates{}
+		q.Add("foo", false)
+		Expect(q).To(HaveLen(1))
+		q.Add("foo", true)
+		Expect(q).To(HaveLen(1))
+		Expect(q[0]).To(Equal(pauseState{ID: "foo", Paused: true}))
 	})
 
-	It("recognizes cancelled context", func() {
-		mm := NewMockingMoby()
-		defer mm.Close()
+	It("removes", func() {
+		q := pendingPauseStates{}
+		q.Add("foo", false)
+		q.Add("bar", true)
+		Expect(q).To(HaveLen(2))
+		q.Remove("foo")
+		Expect(q).To(HaveLen(1))
+		Expect(q[0]).To(Equal(pauseState{ID: "bar", Paused: true}))
+	})
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-
-		Errxpect(mm.Info(ctx)).To(HaveOccurred())
+	It("keeps silent on removing pausing state for nonexisting ID", func() {
+		q := pendingPauseStates{}
+		Expect(func() { q.Remove("foo") }).NotTo(Panic())
 	})
 
 })

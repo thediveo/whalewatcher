@@ -13,18 +13,22 @@ container process running (and thus a PID).
 
 Envisioned use cases are container-aware tools – such as
 [lxkns](https://github.com/thediveo/lxkns) – that seemingly randomly need the
-current state of running container affairs. Tools that yet do not want to do the
-ugly lifting of container engine event tracking, engine state resynchronization
-after reconnects, et cetera. Here, the `whalewatcher` module reduces system load
-especially when state is requested in bursts, as it offers a load-optimized kind
-of "cache". Yet this cache is always closely synchronized to the container
-engine state.
+current state of affairs for all running containers. That is, tools that yet do
+not want to do the ugly lifting of container engine event tracking, engine state
+resynchronization after reconnects, et cetera. Here, the `whalewatcher` module
+reduces system load especially when state is requested in bursts, as it offers a
+load-optimized kind of "cache". Yet this cache is always closely synchronized to
+the container engine state.
 
 > 🛈 If your application requires immediate action upon container lifecycle
 > events then our `whalewatcher` isn't the right module for it.
 
 ## Features
 
+- tracks container information with respect to a container's ID/name, PID,
+  labels, (un)pausing state, and optional (composer) project. See the
+  [`whalewatcher.Container`](https://pkg.go.dev/github.com/thediveo/whalewatcher#Container)
+  type for details.
 - supports different container engines:
   - [Docker/Moby](https://github.com/moby/moby)
   - plain [containerd](https://github.com/containerd/containerd)

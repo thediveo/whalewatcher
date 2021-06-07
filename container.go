@@ -18,9 +18,12 @@ import (
 	"fmt"
 )
 
-// Container is a deliberately limited fake view on containers, dealing with
-// only those few bits of data we're interested in for watching alive containers
-// and how they optionally are organized into composer projects.
+// Container is a deliberately limited view on containers, dealing with only
+// those few bits of data we're interested in for watching alive containers and
+// how they optionally are organized into composer projects.
+//
+// Please note that Container objects are considered immutable, so there's no
+// locking them for updating.
 //
 // We consider containers to be alive when they have an initial process (which
 // might be frozen) and thus a PID corresponding with that initial process. In
@@ -33,6 +36,7 @@ type Container struct {
 	Labels  map[string]string // labels assigned to this container.
 	PID     int               // PID of container's initial ("ealdorman") process.
 	Project string            // optional composer project name, or zero.
+	Paused  bool              // true if container is paused, false if running.
 }
 
 // ProjectName returns the name of the composer project for this container, if
@@ -50,5 +54,13 @@ func (c Container) String() string {
 	if proj != "" {
 		pinfo = fmt.Sprintf("from project '%s' ", proj)
 	}
-	return fmt.Sprintf("container '%s'/%s %swith PID %d", c.Name, c.ID, pinfo, c.PID)
+	paused := ""
+	if c.Paused {
+		paused = "paused "
+	}
+	id := ""
+	if c.Name != c.ID {
+		id = "/" + c.ID
+	}
+	return fmt.Sprintf("%scontainer '%s'%s %swith PID %d", paused, c.Name, id, pinfo, c.PID)
 }
