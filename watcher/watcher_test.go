@@ -102,6 +102,80 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 	})
 
+	It("correctly states pausing state while listing", func() {
+		// Prime mocked moby and ensure that we find all containers in our
+		// portfolio, so we know the simple case works.
+		mm.AddContainer(mockingMoby)
+		mm.AddContainer(furiousFuruncle)
+
+		// (un)pause events during a list should be queued and properly handled
+		// later.
+		ww.list(mockingmoby.WithHook(
+			context.Background(),
+			mockingmoby.ContainerListPost,
+			func(mockingmoby.HookKey) error {
+				mm.PauseContainer(furiousFuruncle.ID)
+				ww.paused(furiousFuruncle.ID, "", true)
+				return nil
+			}))
+		Expect(ww.Portfolio().Project("").Container(furiousFuruncle.ID).Paused).To(BeTrue())
+
+		// a later unpause should be propagate "immediately".
+		mm.PauseContainer(furiousFuruncle.ID)
+		ww.paused(furiousFuruncle.ID, "", false)
+		Expect(ww.Portfolio().Project("").Container(furiousFuruncle.ID).Paused).To(BeFalse())
+	})
+
+	It("correctly drops states pausing state for dying container while listing", func() {
+		// Prime mocked moby and ensure that we find all containers in our
+		// portfolio, so we know the simple case works.
+		mm.AddContainer(mockingMoby)
+		mm.AddContainer(furiousFuruncle)
+
+		// queued (un)pause state changes must be dropped for deleted container.
+		ww.list(mockingmoby.WithHook(
+			context.Background(),
+			mockingmoby.ContainerListPost,
+			func(mockingmoby.HookKey) error {
+				mm.PauseContainer(furiousFuruncle.ID)
+				ww.paused(furiousFuruncle.ID, "", true)
+				mm.RemoveContainer(furiousFuruncle.ID)
+				ww.demised(furiousFuruncle.ID, "")
+				mm.AddContainer(furiousFuruncle)
+				ww.born(context.Background(), furiousFuruncle.ID)
+				return nil
+			}))
+		c := ww.Portfolio().Project("").Container(furiousFuruncle.ID)
+		Expect(c).NotTo(BeNil())
+		Expect(c.Paused).To(BeFalse())
+	})
+
+	It("correctly updates pausing state for resurrected container while listing", func() {
+		// Prime mocked moby and ensure that we find all containers in our
+		// portfolio, so we know the simple case works.
+		mm.AddContainer(mockingMoby)
+		mm.AddContainer(furiousFuruncle)
+
+		// queued (un)pause state changes must be dropped for deleted container.
+		ww.list(mockingmoby.WithHook(
+			context.Background(),
+			mockingmoby.ContainerListPost,
+			func(mockingmoby.HookKey) error {
+				mm.PauseContainer(furiousFuruncle.ID)
+				ww.paused(furiousFuruncle.ID, "", true)
+				mm.RemoveContainer(furiousFuruncle.ID)
+				ww.demised(furiousFuruncle.ID, "")
+				mm.AddContainer(furiousFuruncle)
+				ww.born(context.Background(), furiousFuruncle.ID)
+				ww.paused(furiousFuruncle.ID, "", true)
+				mm.RemoveContainer(furiousFuruncle.ID)
+				return nil
+			}))
+		c := ww.Portfolio().Project("").Container(furiousFuruncle.ID)
+		Expect(c).NotTo(BeNil())
+		Expect(c.Paused).To(BeTrue())
+	})
+
 	It("doesn't crash for failed list", func() {
 		mm.AddContainer(mockingMoby)
 
@@ -133,6 +207,15 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		mm.AddContainer(furiousFuruncle)
 		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name, furiousFuruncle.Name))
+
+		ffpaused := func() bool {
+			return ww.Portfolio().Project("").Container(furiousFuruncle.ID).Paused
+		}
+		mm.PauseContainer(furiousFuruncle.ID)
+		Eventually(ffpaused).Should(BeTrue())
+
+		mm.UnpauseContainer(furiousFuruncle.ID)
+		Eventually(ffpaused).Should(BeFalse())
 
 		mm.RemoveContainer(furiousFuruncle.ID)
 		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name))

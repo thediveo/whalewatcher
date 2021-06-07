@@ -41,10 +41,22 @@ type EngineClient interface {
 	Close()
 }
 
+// ContainerEventType identifies and enumerates the few container lifecycle
+// events we're interested in, regardless of a particular container engine.
+type ContainerEventType byte
+
+// Container lifecycle events, covering only "alive" containers.
+const (
+	ContainerStarted ContainerEventType = iota
+	ContainerExited
+	ContainerPaused
+	ContainerUnpaused
+)
+
 // ContainerEvent is either a container lifecycle event of a container becoming
-// alive or having died.
+// alive, having died (more precise: its process exited), paused or unpaused.
 type ContainerEvent struct {
-	Born    bool   // true if new container, false if container has died.
-	ID      string // ID (or name) of container.
-	Project string // optional composer project name, or zero.
+	Type    ContainerEventType // type of lifecycle event.
+	ID      string             // ID (or name) of container.
+	Project string             // optional composer project name, or zero.
 }

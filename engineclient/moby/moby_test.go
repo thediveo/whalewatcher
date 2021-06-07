@@ -17,6 +17,7 @@ package moby
 import (
 	"context"
 
+	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
 
 	. "github.com/onsi/ginkgo"
@@ -60,7 +61,14 @@ var _ = Describe("moby engineclient", func() {
 	})
 
 	AfterEach(func() {
-		ec.moby.Close()
+		ec.Close()
+	})
+
+	It("has an ID", func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		Expect(ec.ID(ctx)).ToNot(BeZero())
+		cancel()
+		Expect(ec.ID(ctx)).To(BeZero())
 	})
 
 	It("inspects a furuncle", func() {
@@ -108,14 +116,28 @@ var _ = Describe("moby engineclient", func() {
 		mm.AddContainer(madMay)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"ID":      Equal(madMay.ID),
-			"Born":    BeTrue(),
+			"Type":    Equal(engineclient.ContainerStarted),
+			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
+		})))
+
+		mm.PauseContainer(madMay.ID)
+		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
+			"ID":      Equal(madMay.ID),
+			"Type":    Equal(engineclient.ContainerPaused),
+			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
+		})))
+
+		mm.UnpauseContainer(madMay.ID)
+		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
+			"ID":      Equal(madMay.ID),
+			"Type":    Equal(engineclient.ContainerUnpaused),
 			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
 		})))
 
 		mm.RemoveContainer(madMay.ID)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"ID":      Equal(madMay.ID),
-			"Born":    BeFalse(),
+			"Type":    Equal(engineclient.ContainerExited),
 			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
 		})))
 

@@ -45,7 +45,7 @@ var _ = Describe("composer project proxy", func() {
 			"furious_furuncle", "mad_moby"))
 	})
 
-	It("updates existing container", func() {
+	It("doesn't update an existing container", func() {
 		p := newComposerProject("gnampf")
 		Expect(p).NotTo(BeNil())
 
@@ -58,7 +58,7 @@ var _ = Describe("composer project proxy", func() {
 			"furious_furuncle", "mad_moby"))
 		Expect(p.Containers()).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
 			"Name": Equal("furious_furuncle"),
-			"ID":   Equal("2"),
+			"ID":   Equal("1"),
 		}))))
 	})
 
@@ -110,6 +110,19 @@ var _ = Describe("composer project proxy", func() {
 		mm = p.Container("666")
 		Expect(mm).NotTo(BeNil())
 		Expect(mm.Name).To(Equal("mad_moby"))
+	})
+
+	It("updates a container's pause state", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		p.add(&Container{Name: "furious_furuncle"})
+		ff := p.Container("furious_furuncle")
+		Expect(ff.Paused).To(BeFalse())
+		p.SetPaused("furious_furuncle", true)
+		pff := p.Container("furious_furuncle")
+		Expect(pff.Paused).To(BeTrue())
+		Expect(ff.Paused).To(BeFalse())
 	})
 
 })

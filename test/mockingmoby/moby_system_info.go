@@ -23,6 +23,9 @@ import (
 // Info returns engine information, consisting only of a fake engine ID, but
 // nothing else.
 func (mm *MockingMoby) Info(ctx context.Context) (types.Info, error) {
+	if err := isCtxCancelled(ctx); err != nil {
+		return types.Info{}, err
+	}
 	return types.Info{
 		ID: "MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY",
 	}, nil

@@ -22,6 +22,7 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
+	"github.com/thediveo/whalewatcher/engineclient"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -94,7 +95,7 @@ var _ = Describe("containerd engineclient", func() {
 
 		// We should see or have seen a task start event...
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
-			"Born": BeTrue(),
+			"Type": Equal(engineclient.ContainerStarted),
 			"ID":   Equal(testns + "/buzzybocks"),
 		})))
 
@@ -116,7 +117,7 @@ var _ = Describe("containerd engineclient", func() {
 
 		// We should see or have seen the corresponding task exit event...
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
-			"Born": BeFalse(),
+			"Type": Equal(engineclient.ContainerExited),
 			"ID":   Equal(testns + "/buzzybocks"),
 		})))
 

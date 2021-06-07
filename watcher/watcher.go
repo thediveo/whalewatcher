@@ -65,9 +65,10 @@ type watcher struct {
 	readportfolio  *whalewatcher.Portfolio // portfolio as seen by object users.
 	writeportfolio *whalewatcher.Portfolio // portfolio we're updating.
 
-	eventgate      sync.Mutex // not a RWMutex as it doesn't buy us anything here.
-	ongoinglisting bool       // a container list is in progress.
-	bluenorwegians []string   // container IDs we know to have died while list in progress.
+	eventgate      sync.Mutex         // not a RWMutex as it doesn't buy us anything here.
+	listinprogress bool               // listing containers in progress.
+	bluenorwegians []string           // container IDs we know to have died while list in progress.
+	pauses         pendingPauseStates // (un)pause state changes while list in progress.
 
 	once  sync.Once     // "protects" the ready channel
 	ready chan struct{} // ready channel signal
@@ -160,10 +161,15 @@ func (ww *watcher) Watch(ctx context.Context) {
 				}
 				break listentoevents
 			case ev := <-evs:
-				if ev.Born {
+				switch ev.Type {
+				case engineclient.ContainerStarted:
 					ww.born(ctx, ev.ID)
-				} else {
+				case engineclient.ContainerExited:
 					ww.demised(ev.ID, ev.Project)
+				case engineclient.ContainerPaused:
+					ww.paused(ev.ID, ev.Project, true)
+				case engineclient.ContainerUnpaused:
+					ww.paused(ev.ID, ev.Project, false)
 				}
 			}
 		}
@@ -217,14 +223,42 @@ func (ww *watcher) demised(id string, projectname string) {
 	// the dead containers seen during this phase in order to not accidentally
 	// adding them back in case listing and deceasing overlap in unfortunate
 	// ways.
-	if ww.ongoinglisting {
+	if ww.listinprogress {
 		ww.bluenorwegians = append(ww.bluenorwegians, id)
 	}
+	ww.pauses.Remove(id) // ensure to remove any pending (un)pause state update.
 	ww.eventgate.Unlock()
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
 	pf.Remove(id, projectname)
+}
+
+// paused either updates a container's paused state or schedules for a later
+// state update in case a container listing is in progress.
+func (ww *watcher) paused(id string, projectname string, paused bool) {
+	ww.eventgate.Lock()
+	if ww.listinprogress {
+		// while the (initial) listing of containers, including inspecting them,
+		// is in progress, we need to pile up any state changes we see: that's
+		// because we cannot know when exactly the state of a container was
+		// listed (or rather, inspected) and how it relates to the pausing state
+		// changes. To make things worse, containerd users do not necessarily
+		// use the container IDs as UIDs, with nerdctl being a bad example,
+		// while Docker does the right thing using UIDs (but dropping the name
+		// information at the containerd level, sigh).
+		ww.pauses.Add(id, paused)
+		ww.eventgate.Unlock()
+		return
+	}
+	ww.eventgate.Unlock()
+	// We can update the pause status of a container directly.
+	ww.pfmux.RLock()
+	pf := ww.writeportfolio
+	ww.pfmux.RUnlock()
+	if proj := pf.Project(projectname); proj != nil {
+		proj.SetPaused(id, paused)
+	}
 }
 
 // list scans for currently alive and kicking containers and then adds the
@@ -237,7 +271,7 @@ func (ww *watcher) list(ctx context.Context) {
 	// from listing containers aren't synchronized and properly ordered with
 	// respect to the event log.
 	ww.eventgate.Lock()
-	ww.ongoinglisting = true
+	ww.listinprogress = true
 	ww.eventgate.Unlock()
 	// Now try to scan the currently available containers and take only the
 	// alive into further consideration. This is a potentially lengthy
@@ -245,6 +279,9 @@ func (ww *watcher) list(ctx context.Context) {
 	// due to the way container engine APIs tend to be designed.
 	alives, err := ww.engine.List(ctx)
 	if err != nil {
+		ww.once.Do(func() {
+			close(ww.ready)
+		})
 		return // list? what list??
 	}
 	// We now lock out any competing container demise events so we can update
@@ -254,7 +291,8 @@ func (ww *watcher) list(ctx context.Context) {
 	ww.eventgate.Lock()
 	defer func() {
 		ww.bluenorwegians = []string{}
-		ww.ongoinglisting = false // not strictly necessary here, but anywhere within the gated zone.
+		ww.pauses = pendingPauseStates{}
+		ww.listinprogress = false // not strictly necessary here, but anywhere within the gated zone.
 		ww.eventgate.Unlock()
 		ww.once.Do(func() {
 			close(ww.ready)
@@ -271,10 +309,26 @@ nextpet:
 				continue nextpet
 			}
 		}
-		// Otherwise, add it to our portfolio; this is "quick" operation without
-		// any trips to the container engine (we already did the "slow" and
-		// time-consuming bits before).
+		// Otherwise, add the container we've found in the list to our
+		// portfolio; this is "quick" operation without any trips to the
+		// container engine (we already did the "slow" and time-consuming bits
+		// before, such as inspecting the details).
 		pf.Add(alive)
+	}
+	// Play back any pending pause state changes that occurred while the listing
+	// was in progress; if any such pause state changes refer to deceased IDs,
+	// then don't care. containerd's architecture of not enforcing UIDs (as
+	// opposed to IDs) mainly causes us all this hassle, so that's the reason
+	// why we queue state changes and play them back after the
+	// listing/inspection has finished.
+	//
+	// Note: we're still under the eventgate lock.
+	for _, pause := range ww.pauses {
+		if container := pf.Container(pause.ID); container != nil {
+			if project := pf.Project(container.Project); project != nil {
+				project.SetPaused(pause.ID, pause.Paused)
+			}
+		}
 	}
 	// Tumble into defer'red clearing the list of dead parrots and carrying on.
 }

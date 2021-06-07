@@ -20,17 +20,13 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd"
-	cd "github.com/containerd/containerd"
 	events "github.com/containerd/containerd/api/events"
 	tasksv1 "github.com/containerd/containerd/api/services/tasks/v1"
 	tasktypes "github.com/containerd/containerd/api/types/task"
-	cdns "github.com/containerd/containerd/namespaces"
+	cntrdns "github.com/containerd/containerd/namespaces"
 	"github.com/containerd/typeurl"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
-
-	// Register grpc event types
-	_ "github.com/containerd/containerd/api/events"
 )
 
 // DockerNamespace is the name of the containerd namespace used by Docker for
@@ -55,7 +51,7 @@ const nsdelemiter = "/"
 // ContainerdWatcher is a containerd EngineClient for interfacing the generic
 // whale watching with containerd daemons.
 type ContainerdWatcher struct {
-	client *cd.Client
+	client *containerd.Client
 }
 
 // NewContainerdWatcher returns a new ontainerdWatcher using the specified
@@ -84,7 +80,6 @@ func (cw *ContainerdWatcher) ID(ctx context.Context) string {
 
 // Close cleans up and release any engine client resources, if necessary.
 func (cw *ContainerdWatcher) Close() {
-	// TODO:
 	cw.client.Close()
 }
 
@@ -112,7 +107,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 		}
 		// Prepare namespace'd context for further API calls and then get the
 		// container details.
-		nsctx := cdns.WithNamespace(ctx, namespace)
+		nsctx := cntrdns.WithNamespace(ctx, namespace)
 		// As labels are considered to be a container's configuration as opposed
 		// to a container's state information, we first have to list all
 		// containers and then index their labels.
@@ -144,7 +139,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 // ID of a container.
 func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatcher.Container, error) {
 	namespace, id := decodeDisplayID(nameorid)
-	nsctx := cdns.WithNamespace(ctx, namespace)
+	nsctx := cntrdns.WithNamespace(ctx, namespace)
 	cntr, err := cw.client.ContainerService().Get(nsctx, id)
 	if err != nil {
 		return nil, err
@@ -163,10 +158,16 @@ func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*wha
 // newContainer returns the container details of interest to us, given a task,
 // namespace, and container labels. If the task is not alive (with a process),
 // then nil is returned instead.
+//
+// Note: since containerd features "namespaces", we have to namespace the ID, by
+// prepending the namespace to the ID in case its not the "default" namespace.
 func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]string, task *tasktypes.Process) *whalewatcher.Container {
+	paused := false
 	switch task.Status {
-	case tasktypes.StatusRunning, tasktypes.StatusPausing, tasktypes.StatusPaused:
+	case tasktypes.StatusRunning:
 		break
+	case tasktypes.StatusPausing, tasktypes.StatusPaused:
+		paused = true
 	default:
 		return nil
 	}
@@ -181,6 +182,7 @@ func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]st
 		Project: "", // TODO: nerdctl does not label projects, https://github.com/containerd/nerdctl/issues/241
 		PID:     int(task.Pid),
 		Labels:  labels,
+		Paused:  paused,
 	}
 }
 
@@ -215,14 +217,14 @@ func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (<-chan engine
 				case "/tasks/start":
 					taskstart := details.(*events.TaskStart)
 					cntreventstream <- engineclient.ContainerEvent{
-						Born:    true,
+						Type:    engineclient.ContainerStarted,
 						ID:      displayID(ev.Namespace, taskstart.ContainerID),
 						Project: "", // TODO: unsupported by nerdctl
 					}
 				case "/tasks/exit":
 					taskexit := details.(*events.TaskExit)
 					cntreventstream <- engineclient.ContainerEvent{
-						Born:    false,
+						Type:    engineclient.ContainerExited,
 						ID:      displayID(ev.Namespace, taskexit.ContainerID),
 						Project: "", // TODO: unsupported by nerdctl
 					}

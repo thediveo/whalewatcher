@@ -78,6 +78,28 @@ func (p *ComposerProject) Container(nameorid string) *Container {
 	return nil
 }
 
+// SetPaused changes a container's Paused state, obeying the design restriction
+// that Container objects are immutable.
+func (p *ComposerProject) SetPaused(nameorid string, paused bool) {
+	p.m.RLock()
+	defer p.m.RUnlock()
+
+	for idx, cntr := range p.containers {
+		if cntr.Name == nameorid || cntr.ID == nameorid {
+			if paused != cntr.Paused {
+				// As Container is supposed to be immutable, we clone the existing
+				// object, then modify the copy, and finally update the container
+				// reference to point to the copy with the updated state.
+				c := *cntr
+				c.Paused = paused
+				p.containers[idx] = &c
+			}
+			return
+		}
+	}
+	// Silently ignore a non-existing name/ID.
+}
+
 // String returns a textual representation of a composer project with its
 // containers (rendering names, but not IDs).
 func (p *ComposerProject) String() string {
@@ -95,24 +117,15 @@ func (p *ComposerProject) String() string {
 	return fmt.Sprintf("empty composer project '%s'", p.Name)
 }
 
-// add a new container to a composer project or update an existing one. If a
-// container with the same name already exists, then the old container gets
-// removed, so that there is always only one container with a particular name
-// part of a project.
+// add a new container to a composer project. Silently ignore any attempt to add
+// an already existing container.
 func (p *ComposerProject) add(c *Container) {
 	p.m.Lock()
 	defer p.m.Unlock()
 
-	for idx, cntr := range p.containers {
+	for _, cntr := range p.containers {
 		if cntr.Name == c.Name {
-			// A container by this name already exists, so remove the old
-			// "version", potentially updating the ID and other bits of
-			// information. As we don't care about order, erm, container order,
-			// that is, we do an optimized slice delete, see also:
-			// https://github.com/golang/go/wiki/SliceTricks#delete-without-preserving-order
-			p.containers[idx] = p.containers[len(p.containers)-1]
-			p.containers = p.containers[:len(p.containers)-1]
-			break
+			return
 		}
 	}
 	p.containers = append(p.containers, c)
@@ -132,8 +145,11 @@ func (p *ComposerProject) remove(nameid string) {
 			// the slice. As we don't care about order, erm, container order,
 			// that is, we do an optimized slice delete, see also:
 			// https://github.com/golang/go/wiki/SliceTricks#delete-without-preserving-order
-			p.containers[idx] = p.containers[len(p.containers)-1]
-			p.containers = p.containers[:len(p.containers)-1]
+			// Make sure to help the garbage collector by freeing the final
+			// slice slot before shortening the slice.
+			last := len(p.containers) - 1
+			p.containers[idx], p.containers[last] = p.containers[last], nil
+			p.containers = p.containers[:last]
 			return
 		}
 	}

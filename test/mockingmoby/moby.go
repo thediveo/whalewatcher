@@ -96,7 +96,7 @@ func (mm *MockingMoby) StopContainer(nameorid string) {
 		status := c.Status
 		c.Status = MockedExited
 		c.PID = 0
-		mm.containers[nameorid] = c
+		mm.containers[c.ID] = c
 		mm.mux.Unlock()
 		switch status {
 		case MockedRunning, MockedPaused:
@@ -123,6 +123,44 @@ func (mm *MockingMoby) RemoveContainer(nameorid string) {
 				Attributes: MockAttributes(c),
 			})
 		}
+	}
+}
+
+// PauseContainer pauses a container, if currently running, and emits a
+// container pause event.
+func (mm *MockingMoby) PauseContainer(nameorid string) {
+	if c, ok := mm.lookup(nameorid); ok {
+		mm.mux.Lock()
+		if c.Status != MockedRunning {
+			mm.mux.Unlock()
+			return
+		}
+		c.Status = MockedPaused
+		mm.containers[c.ID] = c
+		mm.mux.Unlock()
+		mm.containerEvent("pause", events.Actor{
+			ID:         c.ID,
+			Attributes: MockAttributes(c),
+		})
+	}
+}
+
+// UnpauseContainer unpauses a container, if currently paused, and emits a
+// container unpause event.
+func (mm *MockingMoby) UnpauseContainer(nameorid string) {
+	if c, ok := mm.lookup(nameorid); ok {
+		mm.mux.Lock()
+		if c.Status != MockedPaused {
+			mm.mux.Unlock()
+			return
+		}
+		c.Status = MockedRunning
+		mm.containers[c.ID] = c
+		mm.mux.Unlock()
+		mm.containerEvent("unpause", events.Actor{
+			ID:         c.ID,
+			Attributes: MockAttributes(c),
+		})
 	}
 }
 

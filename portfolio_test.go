@@ -80,4 +80,26 @@ var _ = Describe("composer project portfolio", func() {
 		Expect(pf.ContainerTotal()).To(Equal(0))
 	})
 
+	It("finds container without knowing projects", func() {
+		pf := NewPortfolio()
+		Expect(pf).NotTo(BeNil())
+
+		pf.Add(&Container{
+			Name:    "furious_furuncle",
+			Project: "grumpy",
+		})
+		pf.Add(&Container{
+			Name:    "murky_moby",
+			Project: "rumpelpumpel",
+		})
+
+		c := pf.Container("needy_nirvana")
+		Expect(c).To(BeNil())
+
+		c = pf.Container("furious_furuncle")
+		Expect(c).NotTo(BeNil())
+		Expect(c.Name).To(Equal("furious_furuncle"))
+
+	})
+
 })

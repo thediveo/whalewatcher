@@ -60,6 +60,20 @@ func (pf *Portfolio) Project(name string) *ComposerProject {
 	return pf.projects[name]
 }
 
+// Container returns the container with the specified name, regardless of which
+// project it is in. It returns nil, if no container with the specified name
+// could be found.
+func (pf *Portfolio) Container(nameorid string) *Container {
+	pf.m.RLock()
+	defer pf.m.RUnlock()
+	for _, project := range pf.projects {
+		if container := project.Container(nameorid); container != nil {
+			return container
+		}
+	}
+	return nil
+}
+
 // ContainerTotal returns the total number of containers over all projects,
 // including non-project "standalone" containers.
 func (pf *Portfolio) ContainerTotal() (total int) {

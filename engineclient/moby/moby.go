@@ -107,6 +107,7 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 		Labels:  details.Config.Labels,
 		PID:     details.State.Pid,
 		Project: details.Config.Labels[ComposerProjectLabel],
+		Paused:  details.State.Paused,
 	}, nil
 }
 
@@ -122,7 +123,10 @@ func (mw *MobyWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient
 		evfilters := filters.NewArgs(
 			filters.KeyValuePair{Key: "type", Value: "container"},
 			filters.KeyValuePair{Key: "event", Value: "start"},
-			filters.KeyValuePair{Key: "event", Value: "die"})
+			filters.KeyValuePair{Key: "event", Value: "die"},
+			filters.KeyValuePair{Key: "event", Value: "pause"},
+			filters.KeyValuePair{Key: "event", Value: "unpause"},
+		)
 		evs, errs := mw.moby.Events(ctx, types.EventsOptions{Filters: evfilters})
 		for {
 			select {
@@ -140,13 +144,25 @@ func (mw *MobyWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient
 				switch ev.Action {
 				case "start":
 					cntreventstream <- engineclient.ContainerEvent{
-						Born:    true,
+						Type:    engineclient.ContainerStarted,
 						ID:      ev.Actor.ID,
 						Project: ev.Actor.Attributes[ComposerProjectLabel],
 					}
 				case "die":
 					cntreventstream <- engineclient.ContainerEvent{
-						Born:    false,
+						Type:    engineclient.ContainerExited,
+						ID:      ev.Actor.ID,
+						Project: ev.Actor.Attributes[ComposerProjectLabel],
+					}
+				case "pause":
+					cntreventstream <- engineclient.ContainerEvent{
+						Type:    engineclient.ContainerPaused,
+						ID:      ev.Actor.ID,
+						Project: ev.Actor.Attributes[ComposerProjectLabel],
+					}
+				case "unpause":
+					cntreventstream <- engineclient.ContainerEvent{
+						Type:    engineclient.ContainerUnpaused,
 						ID:      ev.Actor.ID,
 						Project: ev.Actor.Attributes[ComposerProjectLabel],
 					}
