@@ -20,6 +20,9 @@ import (
 	"github.com/thediveo/whalewatcher/watcher"
 )
 
+// Type ID of the container engine handled by this watcher.
+const Type = mobyengine.Type
+
 // NewWatcher returns a Watcher for keeping track of the currently alive
 // containers, optionally with the composer projects they're associated with.
 //
