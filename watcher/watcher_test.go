@@ -62,6 +62,11 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Expect(ww.ID(context.Background())).NotTo(BeZero())
 	})
 
+	It("has type and API path", func() {
+		Expect(ww.Type()).NotTo(BeEmpty())
+		Expect(ww.API()).NotTo(BeEmpty())
+	})
+
 	It("adds newborn container to our portfolio", func() {
 		mm.AddContainer(mockingMoby)
 

@@ -49,6 +49,11 @@ type Watcher interface {
 	// ID returns the (more or less) unique engine identifier; the exact format
 	// is engine-specific.
 	ID(ctx context.Context) string
+	// Identifier of the type of container engine, such as "docker.com",
+	// "containerd.io", et cetera.
+	Type() string
+	// Container engine API path.
+	API() string
 	// Close cleans up and release any engine client resources, if necessary.
 	Close()
 }
@@ -111,6 +116,13 @@ func (ww *watcher) Ready() <-chan struct{} {
 func (ww *watcher) ID(ctx context.Context) string {
 	return ww.engine.ID(ctx)
 }
+
+// Identifier of the type of container engine, such as "docker.com",
+// "containerd.io", et cetera.
+func (ww *watcher) Type() string { return ww.engine.Type() }
+
+// Container engine API path.
+func (ww *watcher) API() string { return ww.engine.API() }
 
 // Close cleans up and release any underlying engine client resources, if
 // necessary.
