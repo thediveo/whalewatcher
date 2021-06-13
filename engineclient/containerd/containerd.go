@@ -29,6 +29,9 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient"
 )
 
+// Type specifies this container engine's type identifier.
+const Type = "containerd.io"
+
 // DockerNamespace is the name of the containerd namespace used by Docker for
 // its own containers (and tasks). As the whalewatcher module has a dedicated
 // Docker engine client, we need to skip this namespace -- the rationale is that
@@ -76,6 +79,14 @@ func (cw *ContainerdWatcher) ID(ctx context.Context) string {
 		return ""
 	}
 	return serverinfo.UUID
+}
+
+// Identifier of the type of container engine.
+func (cw *ContainerdWatcher) Type() string { return Type }
+
+// Container engine API path.
+func (cw *ContainerdWatcher) API() string {
+	return cw.client.Conn().Target()
 }
 
 // Close cleans up and release any engine client resources, if necessary.

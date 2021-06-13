@@ -25,6 +25,9 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient"
 )
 
+// Type specifies this container engine's type identifier.
+const Type = "docker.com"
+
 // ComposerProjectLabel is the name of an optional container label identifying
 // the composer project a container is part of.
 const ComposerProjectLabel = "com.docker.compose.project"
@@ -35,6 +38,7 @@ const ComposerProjectLabel = "com.docker.compose.project"
 type MobyAPIClient interface {
 	client.ContainerAPIClient
 	client.SystemAPIClient
+	DaemonHost() string
 	Close() error
 }
 
@@ -64,6 +68,14 @@ func (mw *MobyWatcher) ID(ctx context.Context) string {
 		return info.ID
 	}
 	return ""
+}
+
+// Identifier of the type of container engine.
+func (mw *MobyWatcher) Type() string { return Type }
+
+// Container engine API path.
+func (mw *MobyWatcher) API() string {
+	return mw.moby.DaemonHost()
 }
 
 // Close cleans up and release any engine client resources, if necessary.

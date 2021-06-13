@@ -64,6 +64,11 @@ var _ = Describe("moby engineclient", func() {
 		ec.Close()
 	})
 
+	It("has engine type ID and API path", func() {
+		Expect(ec.Type()).To(Equal(Type))
+		Expect(ec.API()).NotTo(BeEmpty())
+	})
+
 	It("has an ID", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		Expect(ec.ID(ctx)).ToNot(BeZero())

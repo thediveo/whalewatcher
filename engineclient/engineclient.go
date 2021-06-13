@@ -36,6 +36,11 @@ type EngineClient interface {
 	// (More or less) unique engine identifier; the exact format is
 	// engine-specific.
 	ID(ctx context.Context) string
+	// Identifier of the type of container engine, such as "docker.com",
+	// "containerd.io", et cetera.
+	Type() string
+	// Container engine API path.
+	API() string
 
 	// Clean up and release any engine client resources, if necessary.
 	Close()

@@ -54,6 +54,9 @@ func NewMockingMoby() *MockingMoby {
 	}
 }
 
+// DaemonHost returns the host address used by the client
+func (mm *MockingMoby) DaemonHost() string { return "mock://mocked" }
+
 // Close closes the mock client, releasing its internal resources.
 func (mm *MockingMoby) Close() error {
 	return nil

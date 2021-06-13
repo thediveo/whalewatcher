@@ -55,6 +55,9 @@ var _ = Describe("containerd engineclient", func() {
 		Expect(cw).NotTo(BeNil())
 		defer cw.Close()
 
+		Expect(cw.Type()).To(Equal(Type))
+		Expect(cw.API()).NotTo(BeEmpty())
+
 		ctx, cancel := context.WithCancel(context.Background())
 		evs, errs := cw.LifecycleEvents(ctx)
 
