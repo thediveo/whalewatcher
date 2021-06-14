@@ -58,6 +58,10 @@ const (
 	ContainerUnpaused
 )
 
+// ProjectUnknown signals that the project name is unknown, as opposed to the
+// zero project name.
+const ProjectUnknown = "\000"
+
 // ContainerEvent is either a container lifecycle event of a container becoming
 // alive, having died (more precise: its process exited), paused or unpaused.
 type ContainerEvent struct {

@@ -17,6 +17,7 @@ package watcher
 import (
 	"context"
 
+	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
 
@@ -39,6 +40,14 @@ var (
 		Status: mockingmoby.MockedRunning,
 		PID:    666,
 		Labels: map[string]string{"foo": "bar"},
+	}
+
+	porosePorpoise = mockingmoby.MockedContainer{
+		ID:     "deadbeefc01dcafe",
+		Name:   "porose_porpoise",
+		Status: mockingmoby.MockedRunning,
+		PID:    12345,
+		Labels: map[string]string{"com.docker.compose.project": "porose"},
 	}
 )
 
@@ -75,6 +84,14 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 	})
 
+	It("adds newborn project container to our portfolio", func() {
+		mm.AddContainer(porosePorpoise)
+
+		ww.born(context.Background(), mockingMoby.ID)
+		ww.list(context.Background())
+		Expect(ww.Portfolio().Project("porose").ContainerNames()).To(ConsistOf(porosePorpoise.Name))
+	})
+
 	It("removes dead container from our portfolio", func() {
 		mm.AddContainer(mockingMoby)
 
@@ -83,6 +100,19 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		ww.demised(mockingMoby.ID, "")
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(BeEmpty())
+	})
+
+	It("removes dead project container from our portfolio", func() {
+		mm.AddContainer(porosePorpoise)
+
+		// Silently ignore events for non-existing container
+		ww.demised("notorious_nirvana", engineclient.ProjectUnknown)
+
+		ww.born(context.Background(), porosePorpoise.ID)
+		Expect(ww.Portfolio().Project("porose").ContainerNames()).To(ConsistOf(porosePorpoise.Name))
+
+		ww.demised(porosePorpoise.ID, engineclient.ProjectUnknown)
+		Expect(ww.Portfolio().Project("porose")).To(BeNil())
 	})
 
 	It("doesn't list zombies", func() {
@@ -255,6 +285,22 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		cancel()
 		Eventually(done).Should(BeClosed())
+	})
+
+	It("paused and unpauses project containers", func() {
+		mm.AddContainer(porosePorpoise)
+
+		// Silently ignore events for non-existing container
+		ww.paused("notorious_nirvana", engineclient.ProjectUnknown, true)
+
+		ww.born(context.Background(), porosePorpoise.ID)
+		Expect(ww.Portfolio().Project("porose").ContainerNames()).To(ConsistOf(porosePorpoise.Name))
+
+		ww.paused(porosePorpoise.ID, engineclient.ProjectUnknown, true)
+		Expect(ww.Portfolio().Project("porose").Container(porosePorpoise.ID).Paused).To(BeTrue())
+
+		ww.paused(porosePorpoise.ID, engineclient.ProjectUnknown, false)
+		Expect(ww.Portfolio().Project("porose").Container(porosePorpoise.ID).Paused).To(BeFalse())
 	})
 
 })

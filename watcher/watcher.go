@@ -219,7 +219,9 @@ func (ww *watcher) born(ctx context.Context, id string) {
 
 // demised removes the "permanently sleeping" container with the specified ID
 // from our container portfolio, ensuring it won't pop up again due to an
-// overlapping list scan.
+// overlapping list scan. In case the project name isn't known (such as with the
+// containerd engine), the reserved "name" engineclient.ProjectUnknown can be
+// passed in and it will be derived automatically.
 func (ww *watcher) demised(id string, projectname string) {
 	// The "event gate" does not only serializes access to the shared state
 	// between the container lifecycle event handler and the container listing
@@ -243,11 +245,24 @@ func (ww *watcher) demised(id string, projectname string) {
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
+	// In case the project is unknown, we need to find the container the hard
+	// way. Please note that container objects are considered to be immutable,
+	// so we need to update its project accordingly.
+	if projectname == engineclient.ProjectUnknown {
+		container := pf.Container(id)
+		if container == nil {
+			return
+		}
+		projectname = container.Project
+	}
 	pf.Remove(id, projectname)
 }
 
 // paused either updates a container's paused state or schedules for a later
-// state update in case a container listing is in progress.
+// state update in case a container listing is in progress. In case the project
+// name isn't known (such as with the containerd engine), the reserved "name"
+// engineclient.ProjectUnknown can be passed in and it will be derived
+// automatically.
 func (ww *watcher) paused(id string, projectname string, paused bool) {
 	ww.eventgate.Lock()
 	if ww.listinprogress {
@@ -268,6 +283,16 @@ func (ww *watcher) paused(id string, projectname string, paused bool) {
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
+	// In case the project is unknown, we need to find the container the hard
+	// way. Please note that container objects are considered to be immutable,
+	// so we need to update its project accordingly.
+	if projectname == engineclient.ProjectUnknown {
+		container := pf.Container(id)
+		if container == nil {
+			return
+		}
+		projectname = container.Project
+	}
 	if proj := pf.Project(projectname); proj != nil {
 		proj.SetPaused(id, paused)
 	}
