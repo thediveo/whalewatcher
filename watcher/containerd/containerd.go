@@ -29,7 +29,7 @@ const Type = cdengine.Type
 //
 // When the containerdsock parameter is left empty then containerd's default
 // "/run/containerd/containerd.sock" applies.
-func NewWatcher(containerdsock string) (watcher.Watcher, error) {
+func NewWatcher(containerdsock string, opts ...cdengine.NewOption) (watcher.Watcher, error) {
 	if containerdsock == "" {
 		containerdsock = "/run/containerd/containerd.sock"
 	}
@@ -37,5 +37,5 @@ func NewWatcher(containerdsock string) (watcher.Watcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	return watcher.NewWatcher(cdengine.NewContainerdWatcher(cdclient)), nil
+	return watcher.NewWatcher(cdengine.NewContainerdWatcher(cdclient, opts...)), nil
 }

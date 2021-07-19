@@ -6,7 +6,7 @@ container engine.
 Currently, the following container engines are supported:
 
 - Docker
-- (upcoming: plain containerd with nerdctl-project awareness)
+- plain containerd with nerdctl-project awareness
 
 Usage
 
@@ -16,6 +16,14 @@ as:
 
     import "github.com/thediveo/whalewatcher/watcher/moby"
     moby := NewWatcher("")
+
+The engine watcher NewWatcher() constructors additionally accept options. The
+only option currently being defines is to specify a container engine's PID. The
+PID information then can be used downstream in tools like
+github.com/thediveo/lxkns to translate container PIDs between different PID
+namespaces. It's up to the API user to supply the correct PIDs where necessary
+and known. The watchers themselves do not need the PID information for their own
+operations.
 
 Gory Details Notes
 

@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/ory/dockertest"
+	"github.com/thediveo/whalewatcher/engineclient/moby"
 )
 
 var _ = Describe("Moby watcher engine end-to-end test", func() {
@@ -31,8 +32,9 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 	})
 
 	It("watches", func() {
-		mw, err := NewWatcher("unix:///var/run/docker.sock")
+		mw, err := NewWatcher("unix:///var/run/docker.sock", moby.WithPID(123456))
 		Expect(err).NotTo(HaveOccurred())
+		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -47,29 +49,36 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		Expect(err).NotTo(HaveOccurred())
 		cntr, err := pool.RunWithOptions(&dockertest.RunOptions{
 			Repository: "busybox",
-			Tag:        "latest",
-			Cmd:        []string{"/bin/sleep", "30s"},
+			// ...here, we don't care about the name here, as long as we get a
+			// fresh container.
+			Tag: "latest",
+			Cmd: []string{"/bin/sleep", "30s"},
 			Labels: map[string]string{
-				"com.docker.compose.project": "whackywhale",
+				"com.docker.compose.project": "whalewatcher_whackywhale",
 			},
 		})
 		Expect(err).NotTo(HaveOccurred())
 		var purge sync.Once
 		defer purge.Do(func() { _ = pool.Purge(cntr) })
 
+		// eventually there should be a container poping up with the correct
+		// composer project label.
 		portfolio := func() []string {
-			if proj := mw.Portfolio().Project("whackywhale"); proj != nil {
+			if proj := mw.Portfolio().Project("whalewatcher_whackywhale"); proj != nil {
 				return proj.ContainerNames()
 			}
 			return []string{}
 		}
 		Eventually(portfolio).Should(ConsistOf(cntr.Container.Name[1:]))
 
+		// and envtually that container should also be gone from the watch list
+		// after we killed it.
 		purge.Do(func() {
 			Expect(pool.Purge(cntr)).NotTo(HaveOccurred())
 		})
 		Eventually(portfolio).Should(BeEmpty())
 
+		// wait for the watcher to correctly spin down.
 		cancel()
 		Eventually(done).Should(BeClosed())
 	})

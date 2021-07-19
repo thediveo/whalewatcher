@@ -16,6 +16,7 @@ package containerd
 
 import (
 	"context"
+	"os"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/api/services/tasks/v1"
@@ -32,16 +33,23 @@ import (
 var _ = Describe("containerd engineclient", func() {
 
 	It("has engine ID", func() {
+		if os.Getegid() != 0 {
+			Skip("needs root")
+		}
 		cwclient, err := containerd.New("/run/containerd/containerd.sock")
 		Expect(err).NotTo(HaveOccurred())
-		cw := NewContainerdWatcher(cwclient)
+		cw := NewContainerdWatcher(cwclient, WithPID(123456))
 		Expect(cw).NotTo(BeNil())
 		defer cw.Close()
 
+		Expect(cw.PID()).To(Equal(123456))
 		Expect(cw.ID(context.Background())).NotTo(BeEmpty())
 	})
 
 	It("survives cancelled contexts", func() {
+		if os.Getegid() != 0 {
+			Skip("needs root")
+		}
 		cwclient, err := containerd.New("/run/containerd/containerd.sock")
 		Expect(err).NotTo(HaveOccurred())
 		cw := NewContainerdWatcher(cwclient)
@@ -76,6 +84,10 @@ var _ = Describe("containerd engineclient", func() {
 	})
 
 	It("watches...", func() {
+		if os.Getegid() != 0 {
+			Skip("needs root")
+		}
+
 		const bibi = "buzzybocks"
 		const testns = "whalewatcher-testing"
 
@@ -176,6 +188,10 @@ var _ = Describe("containerd engineclient", func() {
 	})
 
 	It("ignores Docker containers at contaienrd level", func() {
+		if os.Getegid() != 0 {
+			Skip("needs root")
+		}
+
 		const mobyns = "moby"
 		const momo = "morbid_moby"
 

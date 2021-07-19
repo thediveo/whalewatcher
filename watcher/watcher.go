@@ -54,6 +54,8 @@ type Watcher interface {
 	Type() string
 	// Container engine API path.
 	API() string
+	// Container engine PID, when known.
+	PID() int
 	// Close cleans up and release any engine client resources, if necessary.
 	Close()
 }
@@ -124,6 +126,9 @@ func (ww *watcher) Type() string { return ww.engine.Type() }
 // Container engine API path.
 func (ww *watcher) API() string { return ww.engine.API() }
 
+// Container engine PID, when known.
+func (ww *watcher) PID() int { return ww.engine.PID() }
+
 // Close cleans up and release any underlying engine client resources, if
 // necessary.
 func (ww *watcher) Close() {
@@ -149,12 +154,17 @@ func (ww *watcher) Watch(ctx context.Context) {
 		}
 		ww.pfmux.Unlock()
 		// Start receiving container-related events and also fire off a list of
-		// containers query.
+		// containers query. Subscribing to events always succeeds but may then
+		// result in the error channel (immediately) becoming readable.
 		evs, errs := ww.engine.LifecycleEvents(ctx)
 		go func() {
 			ww.list(ctx)
 			// Bring the synchronized portfolio "online" so that object users
-			// can now see the current portfolio and not the "still".
+			// can now see the current portfolio and not the "still" portfolio.
+			//
+			// Note: we even bring the new and potentially empty portfolio
+			// online in case the list() operation has failed. The intention is
+			// to not keep stale information indefinitely.
 			ww.pfmux.Lock()
 			ww.readportfolio = ww.writeportfolio
 			ww.pfmux.Unlock()

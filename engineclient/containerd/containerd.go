@@ -59,20 +59,36 @@ const nsdelemiter = "/"
 // ContainerdWatcher is a containerd EngineClient for interfacing the generic
 // whale watching with containerd daemons.
 type ContainerdWatcher struct {
-	client *containerd.Client
+	pid    int                // optional engine PID when known.
+	client *containerd.Client // containerd API client.
 }
 
 // NewContainerdWatcher returns a new ontainerdWatcher using the specified
 // containerd engine client; normally, you would want to use this lower-level
 // constructor only in unit tests.
-func NewContainerdWatcher(client *containerd.Client) *ContainerdWatcher {
-	return &ContainerdWatcher{
+func NewContainerdWatcher(client *containerd.Client, opts ...NewOption) *ContainerdWatcher {
+	cw := &ContainerdWatcher{
 		client: client,
 	}
+	for _, opt := range opts {
+		opt(cw)
+	}
+	return cw
 }
 
 // Make sure that the EngineClient interface is fully implemented
 var _ (engineclient.EngineClient) = (*ContainerdWatcher)(nil)
+
+// NewOption represents options to NewContainerdWatcher when creating new
+// watchers keeping eyes on containerd engines.
+type NewOption func(*ContainerdWatcher)
+
+// WithPID sets the engine's PID when known.
+func WithPID(pid int) NewOption {
+	return func(cw *ContainerdWatcher) {
+		cw.pid = pid
+	}
+}
 
 // ID returns the (more or less) unique engine identifier; the exact format is
 // engine-specific.
@@ -86,13 +102,14 @@ func (cw *ContainerdWatcher) ID(ctx context.Context) string {
 	return serverinfo.UUID
 }
 
-// Identifier of the type of container engine.
+// Type returns the type identifier for this container engine.
 func (cw *ContainerdWatcher) Type() string { return Type }
 
-// Container engine API path.
-func (cw *ContainerdWatcher) API() string {
-	return cw.client.Conn().Target()
-}
+// API returns the container engine API path.
+func (cw *ContainerdWatcher) API() string { return cw.client.Conn().Target() }
+
+// PID returns the container engine PID, when known.
+func (cw *ContainerdWatcher) PID() int { return cw.pid }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (cw *ContainerdWatcher) Close() {

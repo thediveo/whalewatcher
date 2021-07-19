@@ -45,7 +45,8 @@ type MobyAPIClient interface {
 // MobyWatcher is a Docker-engine EngineClient for interfacing the generic whale
 // watching with Docker daemons.
 type MobyWatcher struct {
-	moby MobyAPIClient
+	pid  int           // optional engine PID when known.
+	moby MobyAPIClient // (minimal) moby engine API client.
 }
 
 // Make sure that the EngineClient interface is fully implemented
@@ -54,9 +55,24 @@ var _ (engineclient.EngineClient) = (*MobyWatcher)(nil)
 // NewMobyWatcher returns a new MobyWatcher using the specified Docker engine
 // client; normally, you would want to use this lower-level constructor only in
 // unit tests.
-func NewMobyWatcher(moby MobyAPIClient) *MobyWatcher {
-	return &MobyWatcher{
+func NewMobyWatcher(moby MobyAPIClient, opts ...NewOption) *MobyWatcher {
+	mw := &MobyWatcher{
 		moby: moby,
+	}
+	for _, opt := range opts {
+		opt(mw)
+	}
+	return mw
+}
+
+// NewOption represents options to NewMobyWatcher when creating new watchers
+// keeping eyes on moby engines.
+type NewOption func(*MobyWatcher)
+
+// WithPID sets the engine's PID when known.
+func WithPID(pid int) NewOption {
+	return func(mw *MobyWatcher) {
+		mw.pid = pid
 	}
 }
 
@@ -70,13 +86,14 @@ func (mw *MobyWatcher) ID(ctx context.Context) string {
 	return ""
 }
 
-// Identifier of the type of container engine.
+// Type returns the type identifier for this container engine.
 func (mw *MobyWatcher) Type() string { return Type }
 
-// Container engine API path.
-func (mw *MobyWatcher) API() string {
-	return mw.moby.DaemonHost()
-}
+// API returns the container engine API path.
+func (mw *MobyWatcher) API() string { return mw.moby.DaemonHost() }
+
+// PID returns the container engine PID, when known.
+func (mw *MobyWatcher) PID() int { return mw.pid }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (mw *MobyWatcher) Close() {

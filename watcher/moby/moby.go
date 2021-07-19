@@ -30,7 +30,7 @@ const Type = mobyengine.Type
 // defaults apply, such as trying to pick up the docker host from the
 // environment or falling back to the local host's
 // "unix:///var/run/docker.sock".
-func NewWatcher(dockersock string) (watcher.Watcher, error) {
+func NewWatcher(dockersock string, opts ...mobyengine.NewOption) (watcher.Watcher, error) {
 	clientopts := []client.Opt{
 		client.FromEnv,
 		client.WithAPIVersionNegotiation(),
@@ -42,5 +42,5 @@ func NewWatcher(dockersock string) (watcher.Watcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	return watcher.NewWatcher(mobyengine.NewMobyWatcher(moby)), nil
+	return watcher.NewWatcher(mobyengine.NewMobyWatcher(moby, opts...)), nil
 }

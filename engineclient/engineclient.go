@@ -41,12 +41,14 @@ type EngineClient interface {
 	Type() string
 	// Container engine API path.
 	API() string
+	// Container engine PID, when known.
+	PID() int
 
 	// Clean up and release any engine client resources, if necessary.
 	Close()
 }
 
-// ContainerEventType identifies and enumerates the few container lifecycle
+// ContainerEventType identifies and enumerates the (few) container lifecycle
 // events we're interested in, regardless of a particular container engine.
 type ContainerEventType byte
 
@@ -58,8 +60,8 @@ const (
 	ContainerUnpaused
 )
 
-// ProjectUnknown signals that the project name is unknown, as opposed to the
-// zero project name.
+// ProjectUnknown signals that the project name for a container event is
+// unknown, as opposed to the zero project name.
 const ProjectUnknown = "\000"
 
 // ContainerEvent is either a container lifecycle event of a container becoming

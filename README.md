@@ -6,8 +6,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
 
 `whalewatcher` is a simple Golang module that watches Docker and plain
-containerd containers becoming alive with processes and later die, keeping track
-of only the "alive" containers. On purpose, this module focuses solely on
+containerd containers becoming "alive" with processes and later die, keeping
+track of only the "alive" containers. On purpose, this module focuses solely on
 _running_ and _paused_ containers, so those only that have at least an initial
 container process running (and thus a PID).
 
@@ -21,7 +21,9 @@ load-optimized kind of "cache". Yet this cache is always closely synchronized to
 the container engine state.
 
 > 🛈 If your application requires immediate action upon container lifecycle
-> events then our `whalewatcher` isn't the right module for it.
+> events then our `whalewatcher` **isn't the right module** for it: our module
+> is design for those use cases where the application needing information about
+> containers is completely decoupled from container lifecycle events.
 
 ## Features
 
@@ -34,9 +36,7 @@ the container engine state.
   - plain [containerd](https://github.com/containerd/containerd)
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
-  - `nerdctl` composer-project support currently is blocked due to [nerdctl
-    issue &#35;241](https://github.com/containerd/nerdctl/issues/241), so
-    project-related containers appear as standalone containers.
+  - [nerdctl](https://github.com/containerd/nerdctl)
 - documentation ...
   [![PkgGoDev](https://pkg.go.dev/badge/github.com/thediveo/whalewatcher)](https://pkg.go.dev/github.com/thediveo/whalewatcher)
 
