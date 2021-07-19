@@ -15,6 +15,7 @@
 package containerd
 
 import (
+	"github.com/cenkalti/backoff"
 	"github.com/containerd/containerd"
 	cdengine "github.com/thediveo/whalewatcher/engineclient/containerd"
 	"github.com/thediveo/whalewatcher/watcher"
@@ -23,13 +24,18 @@ import (
 // Type ID of the container engine handled by this watcher.
 const Type = cdengine.Type
 
-// NewWatcher returns a Watcher for keeping track of the currently alive
+// New returns a Watcher for keeping track of the currently alive
 // containers, optionally with the (nerdctl) composer projects they're
 // associated with.
 //
 // When the containerdsock parameter is left empty then containerd's default
 // "/run/containerd/containerd.sock" applies.
-func NewWatcher(containerdsock string, opts ...cdengine.NewOption) (watcher.Watcher, error) {
+//
+// If the backoff is nil then the backoff defaults to backoff.StopBackOff, that
+// is, any failed operation will never be retried.
+//
+// Finally, containerd engine client-specific options can be passed in.
+func New(containerdsock string, buggeroff backoff.BackOff, opts ...cdengine.NewOption) (watcher.Watcher, error) {
 	if containerdsock == "" {
 		containerdsock = "/run/containerd/containerd.sock"
 	}
@@ -37,5 +43,5 @@ func NewWatcher(containerdsock string, opts ...cdengine.NewOption) (watcher.Watc
 	if err != nil {
 		return nil, err
 	}
-	return watcher.NewWatcher(cdengine.NewContainerdWatcher(cdclient, opts...)), nil
+	return watcher.New(cdengine.NewContainerdWatcher(cdclient, opts...), buggeroff), nil
 }

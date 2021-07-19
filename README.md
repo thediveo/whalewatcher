@@ -37,7 +37,10 @@ the container engine state.
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
   - [nerdctl](https://github.com/containerd/nerdctl)
-- documentation ...
+- optional configurable automatic retries using
+  [backoffs](github.com/cenkalti/backoff) (with different strategies as
+  supported by the external backoff module).
+- documentation ... please see:
   [![PkgGoDev](https://pkg.go.dev/badge/github.com/thediveo/whalewatcher)](https://pkg.go.dev/github.com/thediveo/whalewatcher)
 
 ## Example Usage
@@ -48,15 +51,16 @@ From `example/main.go`:
 package main
 
 import (
-  "context"
-  "fmt"
-  "sort"
+    "context"
+    "fmt"
+    "sort"
 
-  "github.com/thediveo/whalewatcher/watcher/moby"
+    "github.com/thediveo/whalewatcher/watcher/moby"
 )
 
 func main() {
-    whalewatcher, err := moby.NewWatcher("unix:///var/run/docker.sock")
+    // connect to the Docker engine; configure no backoff.
+    whalewatcher, err := moby.New("unix:///var/run/docker.sock", nil)
     if err != nil {
         panic(err)
     }
@@ -64,7 +68,13 @@ func main() {
     fmt.Printf("watching engine ID: %s\n", whalewatcher.ID(ctx))
 
     // run the watch in a separate go routine.
-    go whalewatcher.Watch(ctx)
+    done := make(chan struct{})
+    go func() {
+        if err := whalewatcher.Watch(ctx); ctx.Err() != context.Canceled {
+            panic(err)
+        }
+        close(done)
+    }()
 
     // depending on application you don't need to wait for the first results to
     // become ready; in this example we want to wait for results.
@@ -88,6 +98,7 @@ func main() {
 
     // finally stop the watch
     cancel()
+    <-done
     whalewatcher.Close()
 }
 ```

@@ -17,8 +17,8 @@ package watcher
 import (
 	"context"
 	"sync"
-	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 )
@@ -45,7 +45,7 @@ type Watcher interface {
 	// changes. Watch only returns after the specified context has been
 	// cancelled. It will automatically reconnect in case of loss of connection
 	// to the connected container engine.
-	Watch(ctx context.Context)
+	Watch(ctx context.Context) error
 	// ID returns the (more or less) unique engine identifier; the exact format
 	// is engine-specific.
 	ID(ctx context.Context) string
@@ -66,7 +66,8 @@ type Watcher interface {
 // but only the phase(s) where a container has either running or frozen
 // container processes.
 type watcher struct {
-	engine engineclient.EngineClient // container engine (adaptor)
+	engine    engineclient.EngineClient // container engine (adaptor)
+	buggeroff backoff.BackOff
 
 	pfmux          sync.RWMutex            // supports make-before-break during resync.
 	readportfolio  *whalewatcher.Portfolio // portfolio as seen by object users.
@@ -81,12 +82,18 @@ type watcher struct {
 	ready chan struct{} // ready channel signal
 }
 
-// NewWatcher returns a new Watcher tracking alive containers as they come and
-// go, using the specified container EngineClient.
-func NewWatcher(engine engineclient.EngineClient) Watcher {
+// New returns a new Watcher tracking alive containers as they come and go,
+// using the specified container EngineClient. If the backoff is nil then the
+// backoff defaults to backoff.StopBackOff, that is, any failed operation will
+// never be retried.
+func New(engine engineclient.EngineClient, buggeroff backoff.BackOff) Watcher {
 	pf := whalewatcher.NewPortfolio()
+	if buggeroff == nil {
+		buggeroff = &backoff.StopBackOff{}
+	}
 	return &watcher{
 		engine:         engine,
+		buggeroff:      buggeroff,
 		readportfolio:  pf,
 		writeportfolio: pf,
 		ready:          make(chan struct{}),
@@ -139,9 +146,10 @@ func (ww *watcher) Close() {
 // with respect to alive containers and then continuously watches for changes.
 // Watch only returns after the specified context has been cancelled. It will
 // automatically reconnect in case of loss of connection to the connected
-// container engine.
-func (ww *watcher) Watch(ctx context.Context) {
-	for {
+// container engine, subject to the backoff (and thus optional throttling or
+// rate-limiting) specified when this watch was created.
+func (ww *watcher) Watch(ctx context.Context) error {
+	return backoff.Retry(func() error {
 		// In case we have an existing and non-empty portfolio, keep that
 		// visible to our users while we try to synchronize. If not, then simply
 		// go "live" immediately.
@@ -155,34 +163,56 @@ func (ww *watcher) Watch(ctx context.Context) {
 		ww.pfmux.Unlock()
 		// Start receiving container-related events and also fire off a list of
 		// containers query. Subscribing to events always succeeds but may then
-		// result in the error channel (immediately) becoming readable.
-		evs, errs := ww.engine.LifecycleEvents(ctx)
+		// result in the error channel (immediately) becoming readable which
+		// we'll catch only later below.
+		//
+		// We also create a child context that can be can be cancelled without
+		// cancelling the parent context: this is needed in case the list
+		// operation utterly fails and we thus need to cancel listing for
+		// container events, too. Unfortunately, govet totally go bonkers with
+		// their less-than-stellar "heuristics", thinking that we "leak" a
+		// cancel ... which we don't. When the parent got cancelled, we simply
+		// cannot "leak" a child cancel, whatever govet's "opinion" is.
+		eventsctx, cancelevents := context.WithCancel(ctx)
+		evs, errs := ww.engine.LifecycleEvents(eventsctx)
+		listerr := make(chan error)
 		go func() {
-			ww.list(ctx)
+			if err := ww.list(ctx); err != nil {
+				// list failed for some severe reason, so bail out and tell the
+				// event listener to abort, too.
+				listerr <- err
+				return
+			}
 			// Bring the synchronized portfolio "online" so that object users
 			// can now see the current portfolio and not the "still" portfolio.
-			//
-			// Note: we even bring the new and potentially empty portfolio
-			// online in case the list() operation has failed. The intention is
-			// to not keep stale information indefinitely.
 			ww.pfmux.Lock()
 			ww.readportfolio = ww.writeportfolio
 			ww.pfmux.Unlock()
 		}()
-		var err error
-	listentoevents:
+		// Permanently receive and process container lifecycle-related
+		// events...
 		for {
 			select {
-			case err = <-errs:
+			case err := <-errs:
+				_ = cancelevents // stupid, stupid govet: lots of stupid opinion, nuts of brainz.
 				// The reason of a cancelled context has been flattened into the
 				// client's event stream error, grrr. We thus first check on a
-				// cancelled context in case of any event stream error and let
-				// that take priority.
-				if ctx.Err() == context.Canceled {
-					err = ctx.Err()
+				// cancelled (parent) context in case of any event stream error
+				// and let that take priority.
+				if ctxerr := ctx.Err(); ctxerr == context.Canceled {
+					err = backoff.Permanent(ctxerr)
 				}
-				break listentoevents
+				return err
+
+			case err := <-listerr:
+				// the concurrent list operation has failed so we need to cancel
+				// our event binge watching, too. This isn't a permanent error,
+				// at least not from the cancelled context perspective.
+				cancelevents()
+				return err
+
 			case ev := <-evs:
+				// Churn events.
 				switch ev.Type {
 				case engineclient.ContainerStarted:
 					ww.born(ctx, ev.ID)
@@ -195,16 +225,7 @@ func (ww *watcher) Watch(ctx context.Context) {
 				}
 			}
 		}
-		// The event flow may have ceased either because (1) the context was
-		// cancelled or (2) the Docker daemon has disconnected. In case of (2)
-		// we want to retry. In case of (1) that's the signal to us that our
-		// work's done.
-		if err == context.Canceled {
-			return
-		}
-		// Crude rate limiter
-		time.Sleep(time.Second * 1)
-	}
+	}, ww.buggeroff)
 }
 
 // born adds a single container (identified by its unique ID) to our set of
@@ -310,7 +331,7 @@ func (ww *watcher) paused(id string, projectname string, paused bool) {
 
 // list scans for currently alive and kicking containers and then adds the
 // containers found to our container portfolio.
-func (ww *watcher) list(ctx context.Context) {
+func (ww *watcher) list(ctx context.Context) error {
 	// In case any container(s) die while our container list is in progress,
 	// make sure to pile up their IDs so we later can skip any already dead
 	// containers. This is necessary as while container lifecycle-related events
@@ -329,7 +350,7 @@ func (ww *watcher) list(ctx context.Context) {
 		ww.once.Do(func() {
 			close(ww.ready)
 		})
-		return // list? what list??
+		return err // list? what list??
 	}
 	// We now lock out any competing container demise events so we can update
 	// the portfolio from the list scan results atomically, but still taking
@@ -378,4 +399,5 @@ nextpet:
 		}
 	}
 	// Tumble into defer'red clearing the list of dead parrots and carrying on.
+	return nil
 }

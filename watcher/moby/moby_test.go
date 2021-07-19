@@ -27,12 +27,12 @@ import (
 var _ = Describe("Moby watcher engine end-to-end test", func() {
 
 	It("doesn't accept invalid engine API paths", func() {
-		_, err := NewWatcher("localhost:66666")
+		_, err := New("localhost:66666", nil)
 		Expect(err).To(HaveOccurred())
 	})
 
 	It("watches", func() {
-		mw, err := NewWatcher("unix:///var/run/docker.sock", moby.WithPID(123456))
+		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
@@ -40,7 +40,7 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
 		go func() {
-			mw.Watch(ctx)
+			_ = mw.Watch(ctx)
 			close(done)
 		}()
 		Consistently(done, "1s").ShouldNot(BeClosed())

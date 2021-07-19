@@ -15,6 +15,7 @@
 package moby
 
 import (
+	"github.com/cenkalti/backoff"
 	"github.com/docker/docker/client"
 	mobyengine "github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/watcher"
@@ -23,14 +24,19 @@ import (
 // Type ID of the container engine handled by this watcher.
 const Type = mobyengine.Type
 
-// NewWatcher returns a Watcher for keeping track of the currently alive
-// containers, optionally with the composer projects they're associated with.
+// New returns a Watcher for keeping track of the currently alive containers,
+// optionally with the composer projects they're associated with.
 //
 // When the dockersock parameter is left empty then Docker's usual client
 // defaults apply, such as trying to pick up the docker host from the
 // environment or falling back to the local host's
 // "unix:///var/run/docker.sock".
-func NewWatcher(dockersock string, opts ...mobyengine.NewOption) (watcher.Watcher, error) {
+//
+// If the backoff is nil then the backoff defaults to backoff.StopBackOff, that
+// is, any failed operation will never be retried.
+//
+// Finally, Docker engine client-specific options can be passed in.
+func New(dockersock string, buggeroff backoff.BackOff, opts ...mobyengine.NewOption) (watcher.Watcher, error) {
 	clientopts := []client.Opt{
 		client.FromEnv,
 		client.WithAPIVersionNegotiation(),
@@ -42,5 +48,5 @@ func NewWatcher(dockersock string, opts ...mobyengine.NewOption) (watcher.Watche
 	if err != nil {
 		return nil, err
 	}
-	return watcher.NewWatcher(mobyengine.NewMobyWatcher(moby, opts...)), nil
+	return watcher.New(mobyengine.NewMobyWatcher(moby, opts...), buggeroff), nil
 }

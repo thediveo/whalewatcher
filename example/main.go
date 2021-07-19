@@ -9,7 +9,8 @@ import (
 )
 
 func main() {
-	whalewatcher, err := moby.NewWatcher("unix:///var/run/docker.sock")
+	// connect to the Docker engine; configure no backoff.
+	whalewatcher, err := moby.New("unix:///var/run/docker.sock", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -17,7 +18,13 @@ func main() {
 	fmt.Printf("watching engine ID: %s\n", whalewatcher.ID(ctx))
 
 	// run the watch in a separate go routine.
-	go whalewatcher.Watch(ctx)
+	done := make(chan struct{})
+	go func() {
+		if err := whalewatcher.Watch(ctx); ctx.Err() != context.Canceled {
+			panic(err)
+		}
+		close(done)
+	}()
 
 	// depending on application you don't need to wait for the first results to
 	// become ready; in this example we want to wait for results.
@@ -41,5 +48,6 @@ func main() {
 
 	// finally stop the watch
 	cancel()
+	<-done
 	whalewatcher.Close()
 }

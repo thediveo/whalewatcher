@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
+	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/containerd/containerd v1.5.2
 	github.com/containerd/typeurl v1.0.2
 	github.com/docker/docker v20.10.7+incompatible

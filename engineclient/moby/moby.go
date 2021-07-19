@@ -53,8 +53,8 @@ type MobyWatcher struct {
 var _ (engineclient.EngineClient) = (*MobyWatcher)(nil)
 
 // NewMobyWatcher returns a new MobyWatcher using the specified Docker engine
-// client; normally, you would want to use this lower-level constructor only in
-// unit tests.
+// client; typically, you would want to use this lower-level constructor only in
+// unit tests and instead use watcher.moby.New instead in most use cases.
 func NewMobyWatcher(moby MobyAPIClient, opts ...NewOption) *MobyWatcher {
 	mw := &MobyWatcher{
 		moby: moby,
@@ -115,6 +115,13 @@ func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, err
 	for _, container := range containers {
 		if alive, err := mw.Inspect(ctx, container.ID); err == nil {
 			alives = append(alives, alive)
+		} else {
+			// silently ignore missing containers that have gone since the list
+			// was prepared, but abort on severe problems in order to not keep
+			// this running for too long unnecessarily.
+			if !client.IsErrNotFound(err) {
+				return nil, err
+			}
 		}
 	}
 	return alives, nil
