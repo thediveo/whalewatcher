@@ -17,8 +17,8 @@ package watcher
 import (
 	"context"
 	"sync"
-	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 )
@@ -45,10 +45,17 @@ type Watcher interface {
 	// changes. Watch only returns after the specified context has been
 	// cancelled. It will automatically reconnect in case of loss of connection
 	// to the connected container engine.
-	Watch(ctx context.Context)
+	Watch(ctx context.Context) error
 	// ID returns the (more or less) unique engine identifier; the exact format
 	// is engine-specific.
 	ID(ctx context.Context) string
+	// Identifier of the type of container engine, such as "docker.com",
+	// "containerd.io", et cetera.
+	Type() string
+	// Container engine API path.
+	API() string
+	// Container engine PID, when known.
+	PID() int
 	// Close cleans up and release any engine client resources, if necessary.
 	Close()
 }
@@ -59,7 +66,8 @@ type Watcher interface {
 // but only the phase(s) where a container has either running or frozen
 // container processes.
 type watcher struct {
-	engine engineclient.EngineClient // container engine (adaptor)
+	engine    engineclient.EngineClient // container engine (adaptor)
+	buggeroff backoff.BackOff
 
 	pfmux          sync.RWMutex            // supports make-before-break during resync.
 	readportfolio  *whalewatcher.Portfolio // portfolio as seen by object users.
@@ -74,12 +82,18 @@ type watcher struct {
 	ready chan struct{} // ready channel signal
 }
 
-// NewWatcher returns a new Watcher tracking alive containers as they come and
-// go, using the specified container EngineClient.
-func NewWatcher(engine engineclient.EngineClient) Watcher {
+// New returns a new Watcher tracking alive containers as they come and go,
+// using the specified container EngineClient. If the backoff is nil then the
+// backoff defaults to backoff.StopBackOff, that is, any failed operation will
+// never be retried.
+func New(engine engineclient.EngineClient, buggeroff backoff.BackOff) Watcher {
 	pf := whalewatcher.NewPortfolio()
+	if buggeroff == nil {
+		buggeroff = &backoff.StopBackOff{}
+	}
 	return &watcher{
 		engine:         engine,
+		buggeroff:      buggeroff,
 		readportfolio:  pf,
 		writeportfolio: pf,
 		ready:          make(chan struct{}),
@@ -112,6 +126,16 @@ func (ww *watcher) ID(ctx context.Context) string {
 	return ww.engine.ID(ctx)
 }
 
+// Identifier of the type of container engine, such as "docker.com",
+// "containerd.io", et cetera.
+func (ww *watcher) Type() string { return ww.engine.Type() }
+
+// Container engine API path.
+func (ww *watcher) API() string { return ww.engine.API() }
+
+// Container engine PID, when known.
+func (ww *watcher) PID() int { return ww.engine.PID() }
+
 // Close cleans up and release any underlying engine client resources, if
 // necessary.
 func (ww *watcher) Close() {
@@ -122,9 +146,10 @@ func (ww *watcher) Close() {
 // with respect to alive containers and then continuously watches for changes.
 // Watch only returns after the specified context has been cancelled. It will
 // automatically reconnect in case of loss of connection to the connected
-// container engine.
-func (ww *watcher) Watch(ctx context.Context) {
-	for {
+// container engine, subject to the backoff (and thus optional throttling or
+// rate-limiting) specified when this watch was created.
+func (ww *watcher) Watch(ctx context.Context) error {
+	return backoff.Retry(func() error {
 		// In case we have an existing and non-empty portfolio, keep that
 		// visible to our users while we try to synchronize. If not, then simply
 		// go "live" immediately.
@@ -137,30 +162,57 @@ func (ww *watcher) Watch(ctx context.Context) {
 		}
 		ww.pfmux.Unlock()
 		// Start receiving container-related events and also fire off a list of
-		// containers query.
-		evs, errs := ww.engine.LifecycleEvents(ctx)
+		// containers query. Subscribing to events always succeeds but may then
+		// result in the error channel (immediately) becoming readable which
+		// we'll catch only later below.
+		//
+		// We also create a child context that can be can be cancelled without
+		// cancelling the parent context: this is needed in case the list
+		// operation utterly fails and we thus need to cancel listing for
+		// container events, too. Unfortunately, govet totally go bonkers with
+		// their less-than-stellar "heuristics", thinking that we "leak" a
+		// cancel ... which we don't. When the parent got cancelled, we simply
+		// cannot "leak" a child cancel, whatever govet's "opinion" is.
+		eventsctx, cancelevents := context.WithCancel(ctx)
+		evs, errs := ww.engine.LifecycleEvents(eventsctx)
+		listerr := make(chan error)
 		go func() {
-			ww.list(ctx)
+			if err := ww.list(ctx); err != nil {
+				// list failed for some severe reason, so bail out and tell the
+				// event listener to abort, too.
+				listerr <- err
+				return
+			}
 			// Bring the synchronized portfolio "online" so that object users
-			// can now see the current portfolio and not the "still".
+			// can now see the current portfolio and not the "still" portfolio.
 			ww.pfmux.Lock()
 			ww.readportfolio = ww.writeportfolio
 			ww.pfmux.Unlock()
 		}()
-		var err error
-	listentoevents:
+		// Permanently receive and process container lifecycle-related
+		// events...
 		for {
 			select {
-			case err = <-errs:
+			case err := <-errs:
+				_ = cancelevents // stupid, stupid govet: lots of stupid opinion, nuts of brainz.
 				// The reason of a cancelled context has been flattened into the
 				// client's event stream error, grrr. We thus first check on a
-				// cancelled context in case of any event stream error and let
-				// that take priority.
-				if ctx.Err() == context.Canceled {
-					err = ctx.Err()
+				// cancelled (parent) context in case of any event stream error
+				// and let that take priority.
+				if ctxerr := ctx.Err(); ctxerr == context.Canceled {
+					err = backoff.Permanent(ctxerr)
 				}
-				break listentoevents
+				return err
+
+			case err := <-listerr:
+				// the concurrent list operation has failed so we need to cancel
+				// our event binge watching, too. This isn't a permanent error,
+				// at least not from the cancelled context perspective.
+				cancelevents()
+				return err
+
 			case ev := <-evs:
+				// Churn events.
 				switch ev.Type {
 				case engineclient.ContainerStarted:
 					ww.born(ctx, ev.ID)
@@ -173,16 +225,7 @@ func (ww *watcher) Watch(ctx context.Context) {
 				}
 			}
 		}
-		// The event flow may have ceased either because (1) the context was
-		// cancelled or (2) the Docker daemon has disconnected. In case of (2)
-		// we want to retry. In case of (1) that's the signal to us that our
-		// work's done.
-		if err == context.Canceled {
-			return
-		}
-		// Crude rate limiter
-		time.Sleep(time.Second * 1)
-	}
+	}, ww.buggeroff)
 }
 
 // born adds a single container (identified by its unique ID) to our set of
@@ -207,7 +250,9 @@ func (ww *watcher) born(ctx context.Context, id string) {
 
 // demised removes the "permanently sleeping" container with the specified ID
 // from our container portfolio, ensuring it won't pop up again due to an
-// overlapping list scan.
+// overlapping list scan. In case the project name isn't known (such as with the
+// containerd engine), the reserved "name" engineclient.ProjectUnknown can be
+// passed in and it will be derived automatically.
 func (ww *watcher) demised(id string, projectname string) {
 	// The "event gate" does not only serializes access to the shared state
 	// between the container lifecycle event handler and the container listing
@@ -231,11 +276,24 @@ func (ww *watcher) demised(id string, projectname string) {
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
+	// In case the project is unknown, we need to find the container the hard
+	// way. Please note that container objects are considered to be immutable,
+	// so we need to update its project accordingly.
+	if projectname == engineclient.ProjectUnknown {
+		container := pf.Container(id)
+		if container == nil {
+			return
+		}
+		projectname = container.Project
+	}
 	pf.Remove(id, projectname)
 }
 
 // paused either updates a container's paused state or schedules for a later
-// state update in case a container listing is in progress.
+// state update in case a container listing is in progress. In case the project
+// name isn't known (such as with the containerd engine), the reserved "name"
+// engineclient.ProjectUnknown can be passed in and it will be derived
+// automatically.
 func (ww *watcher) paused(id string, projectname string, paused bool) {
 	ww.eventgate.Lock()
 	if ww.listinprogress {
@@ -256,6 +314,16 @@ func (ww *watcher) paused(id string, projectname string, paused bool) {
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
+	// In case the project is unknown, we need to find the container the hard
+	// way. Please note that container objects are considered to be immutable,
+	// so we need to update its project accordingly.
+	if projectname == engineclient.ProjectUnknown {
+		container := pf.Container(id)
+		if container == nil {
+			return
+		}
+		projectname = container.Project
+	}
 	if proj := pf.Project(projectname); proj != nil {
 		proj.SetPaused(id, paused)
 	}
@@ -263,7 +331,7 @@ func (ww *watcher) paused(id string, projectname string, paused bool) {
 
 // list scans for currently alive and kicking containers and then adds the
 // containers found to our container portfolio.
-func (ww *watcher) list(ctx context.Context) {
+func (ww *watcher) list(ctx context.Context) error {
 	// In case any container(s) die while our container list is in progress,
 	// make sure to pile up their IDs so we later can skip any already dead
 	// containers. This is necessary as while container lifecycle-related events
@@ -282,7 +350,7 @@ func (ww *watcher) list(ctx context.Context) {
 		ww.once.Do(func() {
 			close(ww.ready)
 		})
-		return // list? what list??
+		return err // list? what list??
 	}
 	// We now lock out any competing container demise events so we can update
 	// the portfolio from the list scan results atomically, but still taking
@@ -331,4 +399,5 @@ nextpet:
 		}
 	}
 	// Tumble into defer'red clearing the list of dead parrots and carrying on.
+	return nil
 }

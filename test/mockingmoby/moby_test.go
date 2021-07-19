@@ -49,6 +49,8 @@ var _ = Describe("mockingmoby", func() {
 
 	It("looks up container by name or ID", func() {
 		mm := NewMockingMoby()
+		Expect(mm.DaemonHost()).NotTo(BeEmpty())
+
 		defer mm.Close()
 		mm.AddContainer(mockingMoby)
 

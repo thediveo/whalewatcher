@@ -29,6 +29,9 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient"
 )
 
+// Type specifies this container engine's type identifier.
+const Type = "containerd.io"
+
 // DockerNamespace is the name of the containerd namespace used by Docker for
 // its own containers (and tasks). As the whalewatcher module has a dedicated
 // Docker engine client, we need to skip this namespace -- the rationale is that
@@ -36,13 +39,18 @@ import (
 // only available via the docker/moby API.
 const DockerNamespace = "moby"
 
+// ComposerProjectLabel is the name of an optional container label identifying
+// the composer project a container is part of. We don't import the definition
+// from the moby package in order to not having to rely on that dependency.
+const ComposerProjectLabel = "com.docker.compose.project"
+
 // NerdctlLabelPrefix is the label key prefix used to namespace (oh no, not
 // another "namespace") nertctl-related labels. On purpose, we don't import
 // nerdctl's definitions in order to avoid even more dependencies.
 const NerdctlLabelPrefix = "nerdctl/"
 
 // NerdctlNameLabel stores a container's name, as opposed to the ID.
-const NerdctlNameLabel = NerdctlLabelPrefix + "namespace"
+const NerdctlNameLabel = NerdctlLabelPrefix + "name"
 
 // nsdelemiter is the delemiter used to separate a containerd namespace from a
 // containerd ID.
@@ -51,20 +59,36 @@ const nsdelemiter = "/"
 // ContainerdWatcher is a containerd EngineClient for interfacing the generic
 // whale watching with containerd daemons.
 type ContainerdWatcher struct {
-	client *containerd.Client
+	pid    int                // optional engine PID when known.
+	client *containerd.Client // containerd API client.
 }
 
 // NewContainerdWatcher returns a new ontainerdWatcher using the specified
 // containerd engine client; normally, you would want to use this lower-level
 // constructor only in unit tests.
-func NewContainerdWatcher(client *containerd.Client) *ContainerdWatcher {
-	return &ContainerdWatcher{
+func NewContainerdWatcher(client *containerd.Client, opts ...NewOption) *ContainerdWatcher {
+	cw := &ContainerdWatcher{
 		client: client,
 	}
+	for _, opt := range opts {
+		opt(cw)
+	}
+	return cw
 }
 
 // Make sure that the EngineClient interface is fully implemented
 var _ (engineclient.EngineClient) = (*ContainerdWatcher)(nil)
+
+// NewOption represents options to NewContainerdWatcher when creating new
+// watchers keeping eyes on containerd engines.
+type NewOption func(*ContainerdWatcher)
+
+// WithPID sets the engine's PID when known.
+func WithPID(pid int) NewOption {
+	return func(cw *ContainerdWatcher) {
+		cw.pid = pid
+	}
+}
 
 // ID returns the (more or less) unique engine identifier; the exact format is
 // engine-specific.
@@ -77,6 +101,15 @@ func (cw *ContainerdWatcher) ID(ctx context.Context) string {
 	}
 	return serverinfo.UUID
 }
+
+// Type returns the type identifier for this container engine.
+func (cw *ContainerdWatcher) Type() string { return Type }
+
+// API returns the container engine API path.
+func (cw *ContainerdWatcher) API() string { return cw.client.Conn().Target() }
+
+// PID returns the container engine PID, when known.
+func (cw *ContainerdWatcher) PID() int { return cw.pid }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (cw *ContainerdWatcher) Close() {
@@ -174,12 +207,14 @@ func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]st
 	id := displayID(namespace, task.ID)
 	name := id
 	if nerdyname, ok := labels[NerdctlNameLabel]; ok {
-		name = nerdyname
+		name = displayID(nerdyname, task.ID)
 	}
+	// nerdctl now supports the composer project label.
+	projectname := labels[ComposerProjectLabel]
 	return &whalewatcher.Container{
 		ID:      id,
 		Name:    name,
-		Project: "", // TODO: nerdctl does not label projects, https://github.com/containerd/nerdctl/issues/241
+		Project: projectname,
 		PID:     int(task.Pid),
 		Labels:  labels,
 		Paused:  paused,
@@ -189,7 +224,9 @@ func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]st
 // LifecycleEvents streams container engine events, limited just to those events
 // in the lifecycle of containers getting born (=alive, as opposed to, say,
 // "conceived") and die.
-func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient.ContainerEvent, <-chan error) {
+func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (
+	<-chan engineclient.ContainerEvent, <-chan error,
+) {
 	cntreventstream := make(chan engineclient.ContainerEvent)
 	cntrerrstream := make(chan error, 1)
 
@@ -199,7 +236,9 @@ func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (<-chan engine
 			// please note that strings need to be enclosed in quotes, otherwise
 			// silent fail...
 			`topic=="/tasks/start"`,
-			`topic=="/tasks/exit"`)
+			`topic=="/tasks/exit"`,
+			`topic=="/tasks/paused"`,
+			`topic=="/tasks/resumed"`)
 		for {
 			select {
 			case err := <-errs:
@@ -209,24 +248,50 @@ func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (<-chan engine
 				cntrerrstream <- err
 				return
 			case ev := <-evs:
+				// We here ignore Docker's containerd namespace, as "genuine"
+				// Docker containers must be handled at the level of the Docker
+				// daemon (API) instead. The reason is that there's no Docker
+				// container name at the containerd level, only the container
+				// ID.
+				if ev.Namespace == DockerNamespace {
+					continue
+				}
 				details, err := typeurl.UnmarshalAny(ev.Event)
 				if err != nil {
 					continue
 				}
+				// Unfortunately, containerd engine events differ from Docker
+				// engine events in that the task start/stop events do not carry
+				// any container labels. and especially not a composer project
+				// label.
 				switch ev.Topic {
 				case "/tasks/start":
 					taskstart := details.(*events.TaskStart)
 					cntreventstream <- engineclient.ContainerEvent{
 						Type:    engineclient.ContainerStarted,
 						ID:      displayID(ev.Namespace, taskstart.ContainerID),
-						Project: "", // TODO: unsupported by nerdctl
+						Project: engineclient.ProjectUnknown,
 					}
 				case "/tasks/exit":
 					taskexit := details.(*events.TaskExit)
 					cntreventstream <- engineclient.ContainerEvent{
 						Type:    engineclient.ContainerExited,
 						ID:      displayID(ev.Namespace, taskexit.ContainerID),
-						Project: "", // TODO: unsupported by nerdctl
+						Project: engineclient.ProjectUnknown,
+					}
+				case "/tasks/paused":
+					taskpaused := details.(*events.TaskPaused)
+					cntreventstream <- engineclient.ContainerEvent{
+						Type:    engineclient.ContainerPaused,
+						ID:      displayID(ev.Namespace, taskpaused.ContainerID),
+						Project: engineclient.ProjectUnknown,
+					}
+				case "/tasks/resumed":
+					taskresumed := details.(*events.TaskResumed)
+					cntreventstream <- engineclient.ContainerEvent{
+						Type:    engineclient.ContainerUnpaused,
+						ID:      displayID(ev.Namespace, taskresumed.ContainerID),
+						Project: engineclient.ProjectUnknown,
 					}
 				}
 			}

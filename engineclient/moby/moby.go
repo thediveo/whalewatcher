@@ -25,6 +25,9 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient"
 )
 
+// Type specifies this container engine's type identifier.
+const Type = "docker.com"
+
 // ComposerProjectLabel is the name of an optional container label identifying
 // the composer project a container is part of.
 const ComposerProjectLabel = "com.docker.compose.project"
@@ -35,24 +38,41 @@ const ComposerProjectLabel = "com.docker.compose.project"
 type MobyAPIClient interface {
 	client.ContainerAPIClient
 	client.SystemAPIClient
+	DaemonHost() string
 	Close() error
 }
 
 // MobyWatcher is a Docker-engine EngineClient for interfacing the generic whale
 // watching with Docker daemons.
 type MobyWatcher struct {
-	moby MobyAPIClient
+	pid  int           // optional engine PID when known.
+	moby MobyAPIClient // (minimal) moby engine API client.
 }
 
 // Make sure that the EngineClient interface is fully implemented
 var _ (engineclient.EngineClient) = (*MobyWatcher)(nil)
 
 // NewMobyWatcher returns a new MobyWatcher using the specified Docker engine
-// client; normally, you would want to use this lower-level constructor only in
-// unit tests.
-func NewMobyWatcher(moby MobyAPIClient) *MobyWatcher {
-	return &MobyWatcher{
+// client; typically, you would want to use this lower-level constructor only in
+// unit tests and instead use watcher.moby.New instead in most use cases.
+func NewMobyWatcher(moby MobyAPIClient, opts ...NewOption) *MobyWatcher {
+	mw := &MobyWatcher{
 		moby: moby,
+	}
+	for _, opt := range opts {
+		opt(mw)
+	}
+	return mw
+}
+
+// NewOption represents options to NewMobyWatcher when creating new watchers
+// keeping eyes on moby engines.
+type NewOption func(*MobyWatcher)
+
+// WithPID sets the engine's PID when known.
+func WithPID(pid int) NewOption {
+	return func(mw *MobyWatcher) {
+		mw.pid = pid
 	}
 }
 
@@ -65,6 +85,15 @@ func (mw *MobyWatcher) ID(ctx context.Context) string {
 	}
 	return ""
 }
+
+// Type returns the type identifier for this container engine.
+func (mw *MobyWatcher) Type() string { return Type }
+
+// API returns the container engine API path.
+func (mw *MobyWatcher) API() string { return mw.moby.DaemonHost() }
+
+// PID returns the container engine PID, when known.
+func (mw *MobyWatcher) PID() int { return mw.pid }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (mw *MobyWatcher) Close() {
@@ -86,6 +115,13 @@ func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, err
 	for _, container := range containers {
 		if alive, err := mw.Inspect(ctx, container.ID); err == nil {
 			alives = append(alives, alive)
+		} else {
+			// silently ignore missing containers that have gone since the list
+			// was prepared, but abort on severe problems in order to not keep
+			// this running for too long unnecessarily.
+			if !client.IsErrNotFound(err) {
+				return nil, err
+			}
 		}
 	}
 	return alives, nil

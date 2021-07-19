@@ -56,12 +56,18 @@ var _ = Describe("moby engineclient", func() {
 
 	BeforeEach(func() {
 		mm = mockingmoby.NewMockingMoby()
-		ec = NewMobyWatcher(mm)
+		ec = NewMobyWatcher(mm, WithPID(123456))
+		Expect(ec.PID()).To(Equal(123456))
 		mm.AddContainer(furiousFuruncle)
 	})
 
 	AfterEach(func() {
 		ec.Close()
+	})
+
+	It("has engine type ID and API path", func() {
+		Expect(ec.Type()).To(Equal(Type))
+		Expect(ec.API()).NotTo(BeEmpty())
 	})
 
 	It("has an ID", func() {

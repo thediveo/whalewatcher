@@ -16,7 +16,10 @@ package watcher
 
 import (
 	"context"
+	"time"
 
+	"github.com/cenkalti/backoff"
+	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
 
@@ -40,6 +43,14 @@ var (
 		PID:    666,
 		Labels: map[string]string{"foo": "bar"},
 	}
+
+	porosePorpoise = mockingmoby.MockedContainer{
+		ID:     "deadbeefc01dcafe",
+		Name:   "porose_porpoise",
+		Status: mockingmoby.MockedRunning,
+		PID:    12345,
+		Labels: map[string]string{"com.docker.compose.project": "porose"},
+	}
 )
 
 var _ = Describe("watcher (of whales, not: Wales)", func() {
@@ -50,7 +61,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 	BeforeEach(func() {
 		mm = mockingmoby.NewMockingMoby()
 		Expect(mm).NotTo(BeNil())
-		ww = NewWatcher(moby.NewMobyWatcher(mm)).(*watcher)
+		ww = New(moby.NewMobyWatcher(mm), backoff.NewConstantBackOff(500*time.Millisecond)).(*watcher)
 		Expect(ww).NotTo(BeNil())
 	})
 
@@ -62,12 +73,25 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Expect(ww.ID(context.Background())).NotTo(BeZero())
 	})
 
+	It("has type and API path", func() {
+		Expect(ww.Type()).NotTo(BeEmpty())
+		Expect(ww.API()).NotTo(BeEmpty())
+	})
+
 	It("adds newborn container to our portfolio", func() {
 		mm.AddContainer(mockingMoby)
 
 		ww.born(context.Background(), mockingMoby.ID)
-		ww.list(context.Background())
+		Expect(ww.list(context.Background())).To(Succeed())
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
+	})
+
+	It("adds newborn project container to our portfolio", func() {
+		mm.AddContainer(porosePorpoise)
+
+		ww.born(context.Background(), mockingMoby.ID)
+		Expect(ww.list(context.Background())).To(Succeed())
+		Expect(ww.Portfolio().Project("porose").ContainerNames()).To(ConsistOf(porosePorpoise.Name))
 	})
 
 	It("removes dead container from our portfolio", func() {
@@ -80,25 +104,38 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(BeEmpty())
 	})
 
+	It("removes dead project container from our portfolio", func() {
+		mm.AddContainer(porosePorpoise)
+
+		// Silently ignore events for non-existing container
+		ww.demised("notorious_nirvana", engineclient.ProjectUnknown)
+
+		ww.born(context.Background(), porosePorpoise.ID)
+		Expect(ww.Portfolio().Project("porose").ContainerNames()).To(ConsistOf(porosePorpoise.Name))
+
+		ww.demised(porosePorpoise.ID, engineclient.ProjectUnknown)
+		Expect(ww.Portfolio().Project("porose")).To(BeNil())
+	})
+
 	It("doesn't list zombies", func() {
 		// Prime mocked moby and ensure that we find all containers in our
 		// portfolio, so we know the simple case works.
 		mm.AddContainer(mockingMoby)
 		mm.AddContainer(furiousFuruncle)
-		ww.list(context.Background())
+		Expect(ww.list(context.Background())).To(Succeed())
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name, furiousFuruncle.Name))
 
 		// Now check that containers dying while the list is in progress don't
 		// get added to the portfolio, avoiding the portfolio getting filled
 		// with zombies.
-		ww.list(mockingmoby.WithHook(
+		Expect(ww.list(mockingmoby.WithHook(
 			context.Background(),
 			mockingmoby.ContainerListPost,
 			func(mockingmoby.HookKey) error {
 				mm.RemoveContainer(furiousFuruncle.Name)
 				ww.demised(furiousFuruncle.ID, "")
 				return nil
-			}))
+			}))).To(Succeed())
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 	})
 
@@ -110,14 +147,14 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		// (un)pause events during a list should be queued and properly handled
 		// later.
-		ww.list(mockingmoby.WithHook(
+		Expect(ww.list(mockingmoby.WithHook(
 			context.Background(),
 			mockingmoby.ContainerListPost,
 			func(mockingmoby.HookKey) error {
 				mm.PauseContainer(furiousFuruncle.ID)
 				ww.paused(furiousFuruncle.ID, "", true)
 				return nil
-			}))
+			}))).To(Succeed())
 		Expect(ww.Portfolio().Project("").Container(furiousFuruncle.ID).Paused).To(BeTrue())
 
 		// a later unpause should be propagate "immediately".
@@ -133,7 +170,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		mm.AddContainer(furiousFuruncle)
 
 		// queued (un)pause state changes must be dropped for deleted container.
-		ww.list(mockingmoby.WithHook(
+		Expect(ww.list(mockingmoby.WithHook(
 			context.Background(),
 			mockingmoby.ContainerListPost,
 			func(mockingmoby.HookKey) error {
@@ -144,7 +181,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 				mm.AddContainer(furiousFuruncle)
 				ww.born(context.Background(), furiousFuruncle.ID)
 				return nil
-			}))
+			}))).To(Succeed())
 		c := ww.Portfolio().Project("").Container(furiousFuruncle.ID)
 		Expect(c).NotTo(BeNil())
 		Expect(c.Paused).To(BeFalse())
@@ -157,7 +194,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		mm.AddContainer(furiousFuruncle)
 
 		// queued (un)pause state changes must be dropped for deleted container.
-		ww.list(mockingmoby.WithHook(
+		Expect(ww.list(mockingmoby.WithHook(
 			context.Background(),
 			mockingmoby.ContainerListPost,
 			func(mockingmoby.HookKey) error {
@@ -170,7 +207,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 				ww.paused(furiousFuruncle.ID, "", true)
 				mm.RemoveContainer(furiousFuruncle.ID)
 				return nil
-			}))
+			}))).To(Succeed())
 		c := ww.Portfolio().Project("").Container(furiousFuruncle.ID)
 		Expect(c).NotTo(BeNil())
 		Expect(c.Paused).To(BeTrue())
@@ -181,7 +218,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		cctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		ww.list(cctx)
+		Expect(ww.list(cctx)).To(MatchError(MatchRegexp(`context canceled`)))
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(BeEmpty())
 	})
 
@@ -191,7 +228,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		cctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
 		go func() {
-			ww.Watch(cctx)
+			_ = ww.Watch(cctx)
 			close(done)
 		}()
 
@@ -224,7 +261,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Eventually(done).Should(BeClosed())
 	})
 
-	It("resynchronizes", func() {
+	It("resynchronizes (with backoff)", func() {
 		portfolio := func() []string {
 			return ww.Portfolio().Project("").ContainerNames()
 		}
@@ -233,7 +270,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		cctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
 		go func() {
-			ww.Watch(cctx)
+			_ = ww.Watch(cctx)
 			close(done)
 		}()
 		// Make sure that the watcher goroutine has properly started the event
@@ -242,14 +279,31 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		// ...before stopping events. Otherwise: nice safeguard panic (instead
 		// of deadlock).
-		mm.StopEvents()
+		mm.StopEvents() // triggers backoff with reconnect.
 		Consistently(portfolio, "2s", "10ms").Should(ConsistOf(mockingMoby.Name))
 
 		mm.AddContainer(furiousFuruncle)
 		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name, furiousFuruncle.Name))
+		Expect(done).NotTo(BeClosed())
 
 		cancel()
 		Eventually(done).Should(BeClosed())
+	})
+
+	It("paused and unpauses project containers", func() {
+		mm.AddContainer(porosePorpoise)
+
+		// Silently ignore events for non-existing container
+		ww.paused("notorious_nirvana", engineclient.ProjectUnknown, true)
+
+		ww.born(context.Background(), porosePorpoise.ID)
+		Expect(ww.Portfolio().Project("porose").ContainerNames()).To(ConsistOf(porosePorpoise.Name))
+
+		ww.paused(porosePorpoise.ID, engineclient.ProjectUnknown, true)
+		Expect(ww.Portfolio().Project("porose").Container(porosePorpoise.ID).Paused).To(BeTrue())
+
+		ww.paused(porosePorpoise.ID, engineclient.ProjectUnknown, false)
+		Expect(ww.Portfolio().Project("porose").Container(porosePorpoise.ID).Paused).To(BeFalse())
 	})
 
 })
