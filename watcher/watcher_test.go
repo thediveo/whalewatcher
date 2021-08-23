@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"

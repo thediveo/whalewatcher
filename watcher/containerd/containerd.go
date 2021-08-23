@@ -15,7 +15,7 @@
 package containerd
 
 import (
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/containerd/containerd"
 	cdengine "github.com/thediveo/whalewatcher/engineclient/containerd"
 	"github.com/thediveo/whalewatcher/watcher"
