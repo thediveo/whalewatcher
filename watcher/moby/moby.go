@@ -15,7 +15,7 @@
 package moby
 
 import (
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/docker/docker/client"
 	mobyengine "github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/watcher"
