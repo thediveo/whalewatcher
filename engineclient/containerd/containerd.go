@@ -111,6 +111,9 @@ func (cw *ContainerdWatcher) API() string { return cw.client.Conn().Target() }
 // PID returns the container engine PID, when known.
 func (cw *ContainerdWatcher) PID() int { return cw.pid }
 
+// Client returns the underlying engine client (engine-specific).
+func (cw *ContainerdWatcher) Client() interface{} { return cw.client }
+
 // Close cleans up and release any engine client resources, if necessary.
 func (cw *ContainerdWatcher) Close() {
 	cw.client.Close()
