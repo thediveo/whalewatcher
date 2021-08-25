@@ -56,6 +56,8 @@ type Watcher interface {
 	API() string
 	// Container engine PID, when known.
 	PID() int
+	// Underlying engine client (engine-specific).
+	Client() interface{}
 	// Close cleans up and release any engine client resources, if necessary.
 	Close()
 }
@@ -135,6 +137,9 @@ func (ww *watcher) API() string { return ww.engine.API() }
 
 // Container engine PID, when known.
 func (ww *watcher) PID() int { return ww.engine.PID() }
+
+// Client returns the underlying engine client (engine-specific).
+func (ww *watcher) Client() interface{} { return ww.engine.Client() }
 
 // Close cleans up and release any underlying engine client resources, if
 // necessary.

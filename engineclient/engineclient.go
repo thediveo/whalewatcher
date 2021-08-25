@@ -46,6 +46,9 @@ type EngineClient interface {
 	// Container engine PID, when known. Otherwise zero.
 	PID() int
 
+	// Underlying engine client (engine-specific).
+	Client() interface{}
+
 	// Clean up and release any engine client resources, if necessary.
 	Close()
 }
