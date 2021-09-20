@@ -18,9 +18,12 @@ import (
 	"context"
 	"sync"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/ory/dockertest"
+	. "github.com/onsi/gomega/gstruct"
+	"github.com/ory/dockertest/v3"
 	"github.com/thediveo/whalewatcher/engineclient/moby"
 )
 
@@ -29,6 +32,32 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 	It("doesn't accept invalid engine API paths", func() {
 		_, err := New("localhost:66666", nil)
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("gets and uses the underlying Docker client", func() {
+		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(mw.PID()).To(Equal(123456))
+		defer mw.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		done := make(chan struct{})
+		go func() {
+			_ = mw.Watch(ctx)
+			close(done)
+		}()
+		Consistently(done, "1s").ShouldNot(BeClosed())
+
+		dc, ok := mw.Client().(client.APIClient)
+		Expect(ok).To(BeTrue())
+		Expect(dc).NotTo(BeNil())
+		networks, err := dc.NetworkList(ctx, types.NetworkListOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(networks).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+			"Name":   Equal("bridge"),
+			"Driver": Equal("bridge"),
+		})))
 	})
 
 	It("watches", func() {

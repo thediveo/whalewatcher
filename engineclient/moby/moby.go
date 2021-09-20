@@ -101,6 +101,9 @@ func (mw *MobyWatcher) API() string { return mw.moby.DaemonHost() }
 // PID returns the container engine PID, when known.
 func (mw *MobyWatcher) PID() int { return mw.pid }
 
+// Client returns the underlying engine client (engine-specific).
+func (mw *MobyWatcher) Client() interface{} { return mw.moby }
+
 // Close cleans up and release any engine client resources, if necessary.
 func (mw *MobyWatcher) Close() {
 	mw.moby.Close()
