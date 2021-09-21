@@ -1,5 +1,5 @@
 goversion = 1.16 1.15
-phonies = help clean godoc reportcard
+phonies = help clean test godoc reportcard
 
 # A literal space; see: https://stackoverflow.com/a/9551487
 space :=
@@ -18,6 +18,9 @@ help:
 
 clean:
 	rm -f coverage.html coverage.out coverage.txt
+
+test:
+	go test -v -exec sudo ./... && go test -v ./...
 
 godoc:
 	@godoc -http=:6060
