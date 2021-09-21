@@ -125,7 +125,11 @@ var _ = Describe("containerd engineclient", func() {
 			bibi,
 			containerd.WithNewSnapshot(bibi+"-snapshot", busyboximg),
 			containerd.WithNewSpec(oci.WithImageConfigArgs(busyboximg,
-				[]string{"/bin/sleep", "30s"})))
+				[]string{"/bin/sleep", "30s"})),
+			containerd.WithAdditionalContainerLabels(map[string]string{
+				"foo":            "bar",
+				NerdctlNameLabel: "rappelfatz",
+			}))
 		Expect(err).NotTo(HaveOccurred())
 		defer func() {
 			_ = buzzybocks.Delete(wwctx, containerd.WithSnapshotCleanup)
@@ -148,14 +152,15 @@ var _ = Describe("containerd engineclient", func() {
 		containers, err := cw.List(wwctx)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(containers).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
-			"ID": Equal(testns + "/" + bibi),
+			"ID":   Equal(testns + "/" + bibi),
+			"Name": Equal(testns + "/rappelfatz"),
 		}))))
 
 		// ...and we should be able to query its details.
 		container, err := cw.Inspect(wwctx, testns+"/"+bibi)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(container.ID).To(Equal(testns + "/" + bibi))
-		Expect(container.Name).To(Equal(testns + "/" + bibi))
+		Expect(container.Name).To(Equal(testns + "/rappelfatz"))
 
 		// pause...
 		Expect(buzzybockstask.Pause(wwctx)).NotTo(HaveOccurred())
@@ -187,7 +192,7 @@ var _ = Describe("containerd engineclient", func() {
 		Eventually(errs).Should(BeClosed())
 	})
 
-	It("ignores Docker containers at contaienrd level", func() {
+	It("ignores Docker containers at containerd level", func() {
 		if os.Getegid() != 0 {
 			Skip("needs root")
 		}

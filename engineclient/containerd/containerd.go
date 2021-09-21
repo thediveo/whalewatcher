@@ -207,10 +207,16 @@ func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]st
 	default:
 		return nil
 	}
+	// While containerd itself unfortunately doesn't follow Docker's concept of
+	// differentiating between an always container instance-unique ID versus a
+	// functional name, nerdctl emulates it using a nerdctl-specific container
+	// label. If that's present, then we'll happily use it. Slightly differing
+	// from Docker, any name will always be prefixed by a (non-default)
+	// namespace.
 	id := displayID(namespace, task.ID)
 	name := id
 	if nerdyname, ok := labels[NerdctlNameLabel]; ok {
-		name = displayID(nerdyname, task.ID)
+		name = displayID(namespace, nerdyname)
 	}
 	// nerdctl now supports the composer project label.
 	projectname := labels[ComposerProjectLabel]
