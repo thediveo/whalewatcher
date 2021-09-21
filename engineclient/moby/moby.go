@@ -154,7 +154,9 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 		Project: details.Config.Labels[ComposerProjectLabel],
 		Paused:  details.State.Paused,
 	}
-	if details.HostConfig.Privileged {
+	if details.HostConfig != nil && details.HostConfig.Privileged {
+		// Just the presence of the "magic" label is sufficient; the label's
+		// value doesn't matter.
 		cntr.Labels[PrivilegedLabel] = ""
 	}
 	return cntr, nil
