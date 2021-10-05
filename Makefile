@@ -1,29 +1,17 @@
-goversion = 1.16 1.15
-phonies = help clean test godoc reportcard
+.PHONY: help clean godoc reportcard test
 
-# A literal space; see: https://stackoverflow.com/a/9551487
-space :=
-space +=
+help: ## list available targets
+	@# Shamelessly stolen from Gomega's Makefile
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-# A comma followed by a space.
-commasep := ,
-commasep +=
-
-comma-joined = $(subst $(space),$(commasep),$(strip $1))
-
-.PHONY: $(phonies)
-
-help:
-	@printf "available targets: $(call comma-joined,$(phonies))\n"
-
-clean:
+clean: ## cleans up build and testing artefacts
 	rm -f coverage.html coverage.out coverage.txt
 
-test:
-	go test -v -exec sudo ./... && go test -v ./...
-
-godoc:
+godoc: ## serves godoc on port 6060
 	@godoc -http=:6060
 
-reportcard:
-	@scripts/goreportcard
+reportcard: ## run goreportcard on this module
+	@scripts/goreportcard.sh
+
+test: ## run unit tests
+	go test -v -exec sudo ./... && go test -v ./...
