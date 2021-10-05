@@ -32,6 +32,12 @@ const Type = "docker.com"
 // the composer project a container is part of.
 const ComposerProjectLabel = "com.docker.compose.project"
 
+// PrivilegedLabel is the name of an optional container label signalling be its
+// sheer presence that labelled container has been started with a host config
+// that includes Privileged. The label's value is always empty, so neither
+// "true" nor "false" values here.
+const PrivilegedLabel = "github.com/thediveo/whalewatcher/moby/privileged"
+
 // MobyAPIClient is a Docker client offering the container and system APIs. For
 // production, Docker's client.Client is a compatible implementation, for unit
 // testing our very own mockingmoby.MockingMoby.
@@ -140,14 +146,20 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 	if details.State == nil || details.State.Pid == 0 {
 		return nil, fmt.Errorf("Docker container '%s' has no initial process", nameorid)
 	}
-	return &whalewatcher.Container{
+	cntr := &whalewatcher.Container{
 		ID:      details.ID,
 		Name:    details.Name[1:], // get rid off the leading slash
 		Labels:  details.Config.Labels,
 		PID:     details.State.Pid,
 		Project: details.Config.Labels[ComposerProjectLabel],
 		Paused:  details.State.Paused,
-	}, nil
+	}
+	if details.HostConfig != nil && details.HostConfig.Privileged {
+		// Just the presence of the "magic" label is sufficient; the label's
+		// value doesn't matter.
+		cntr.Labels[PrivilegedLabel] = ""
+	}
+	return cntr, nil
 }
 
 // LifecycleEvents streams container engine events, limited just to those events
