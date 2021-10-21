@@ -77,8 +77,19 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.ID(ctx)).To(BeZero())
 	})
 
+	It("cannot inspect a dead container", func() {
+		mm.AddContainer(deadDummy)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		_, err := ec.Inspect(ctx, deadDummy.ID)
+		Expect(err).To(HaveOccurred())
+		Expect(engineclient.IsProcesslessContainer(err)).To(BeTrue())
+	})
+
 	It("inspects a furuncle", func() {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		cntr, err := ec.Inspect(ctx, furiousFuruncle.ID)
 		Expect(err).NotTo(HaveOccurred())
