@@ -16,7 +16,6 @@ package containerd
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/containerd/containerd"
@@ -186,7 +185,7 @@ func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*wha
 	}
 	c := cw.newContainer(namespace, cntr.Labels, task.Process)
 	if c == nil {
-		return nil, fmt.Errorf("containerd container '%s' has no initial process", nameorid)
+		return nil, engineclient.NewProcesslessContainerError(nameorid, "containerd")
 	}
 	return c, nil
 }
