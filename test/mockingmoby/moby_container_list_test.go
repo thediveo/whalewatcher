@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	. "github.com/thediveo/errxpect"
 )
 
 var _ = Describe("lists mocked containers", func() {
@@ -66,7 +65,7 @@ var _ = Describe("lists mocked containers", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Errxpect(mm.ContainerList(ctx, types.ContainerListOptions{})).To(HaveOccurred())
+		Expect(mm.ContainerList(ctx, types.ContainerListOptions{})).Error().To(HaveOccurred())
 	})
 
 	It("registers and calls hooks", func() {

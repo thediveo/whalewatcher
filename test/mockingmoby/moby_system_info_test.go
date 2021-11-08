@@ -19,7 +19,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/thediveo/errxpect"
 )
 
 var _ = Describe("informs", func() {
@@ -39,7 +38,7 @@ var _ = Describe("informs", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Errxpect(mm.Info(ctx)).To(HaveOccurred())
+		Expect(mm.Info(ctx)).Error().To(HaveOccurred())
 	})
 
 })
