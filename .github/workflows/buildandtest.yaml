@@ -19,6 +19,11 @@ jobs:
         go-version: ${{matrix.go}}
       id: go
 
+    - name: Set up Go for root
+      run: |
+        sudo ln -sf `which go` `sudo which go` || true
+        sudo go version
+        
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
