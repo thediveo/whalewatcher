@@ -10,7 +10,7 @@ clean: ## cleans up build and testing artefacts
 godoc: ## serves godoc on port 6060
 	@godoc -http=:6060
 
-reportcard: ## run goreportcard on this module
+report: ## run goreportcard on this module
 	@scripts/goreportcard.sh
 
 test: ## run unit tests
