@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package moby
+package whalewatcher
 
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-func TestMoby(t *testing.T) {
+func TestWhalewatcher(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "engineclient/moby package")
+	RunSpecs(t, "whalewatcher package")
 }

@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package watcher
+package moby
 
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-func TestWatcher(t *testing.T) {
+func TestMoby(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "watcher package")
+	RunSpecs(t, "engineclient/moby package")
 }
