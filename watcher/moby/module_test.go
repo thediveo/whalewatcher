@@ -16,14 +16,15 @@ package moby
 
 import (
 	"testing"
+	"time"
 
-	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/config"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func TestMobyWatcher(t *testing.T) {
-	config.DefaultReporterConfig.SlowSpecThreshold = 20
+	_, reporterConfig := GinkgoConfiguration()
+	reporterConfig.SlowSpecThreshold = 20 * time.Second
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "moby watcher constructor package")
 }

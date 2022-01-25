@@ -23,7 +23,7 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

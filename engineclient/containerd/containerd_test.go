@@ -25,7 +25,7 @@ import (
 	"github.com/containerd/containerd/oci"
 	"github.com/thediveo/whalewatcher/engineclient"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 )
@@ -113,6 +113,7 @@ var _ = Describe("containerd engineclient", func() {
 		// test...
 		_, _ = cdclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: bibi})
 		_ = cdclient.ContainerService().Delete(wwctx, bibi)
+		_ = cdclient.SnapshotService("").Remove(wwctx, bibi+"-snapshot")
 
 		// Pull a busybox image, if not already locally available.
 		busyboximg, err := cdclient.Pull(wwctx,
@@ -218,6 +219,7 @@ var _ = Describe("containerd engineclient", func() {
 		// test...
 		_, _ = cwclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: momo})
 		_ = cwclient.ContainerService().Delete(wwctx, momo)
+		_ = cwclient.SnapshotService("").Remove(wwctx, momo+"-snapshot")
 
 		// Pull a busybox image, if not already locally available.
 		busyboximg, err := cwclient.Pull(wwctx,
