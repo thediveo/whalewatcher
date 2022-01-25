@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package moby
+package containerd
 
 import (
 	"testing"
@@ -22,9 +22,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestMobyWatcher(t *testing.T) {
-	_, reporterConfig := GinkgoConfiguration()
-	reporterConfig.SlowSpecThreshold = 20 * time.Second
+func TestContainerd(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "moby watcher constructor package")
+	_, reporterConfig := GinkgoConfiguration()
+	reporterConfig.SlowSpecThreshold = 30 * time.Second
+	RunSpecs(t, "engineclient/containerd package")
 }

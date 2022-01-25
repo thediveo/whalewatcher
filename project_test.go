@@ -17,7 +17,6 @@ package whalewatcher
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
 )
 
 var _ = Describe("composer project proxy", func() {
@@ -56,10 +55,10 @@ var _ = Describe("composer project proxy", func() {
 		Expect(p.Containers()).To(HaveLen(2))
 		Expect(p.ContainerNames()).To(ConsistOf(
 			"furious_furuncle", "mad_moby"))
-		Expect(p.Containers()).To(ContainElement(PointTo(MatchFields(IgnoreExtras, Fields{
-			"Name": Equal("furious_furuncle"),
-			"ID":   Equal("1"),
-		}))))
+		Expect(p.Containers()).To(ContainElement(HaveValue(And(
+			HaveField("Name", Equal("furious_furuncle")),
+			HaveField("ID", Equal("1")),
+		))))
 	})
 
 	It("removes containers", func() {

@@ -22,7 +22,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
 )
 
 var (
@@ -77,14 +76,24 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.ID(ctx)).To(BeZero())
 	})
 
+	It("cannot inspect a dead container", func() {
+		mm.AddContainer(deadDummy)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		_, err := ec.Inspect(ctx, deadDummy.ID)
+		Expect(err).To(HaveOccurred())
+		Expect(engineclient.IsProcesslessContainer(err)).To(BeTrue())
+	})
+
 	It("inspects a furuncle", func() {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		cntr, err := ec.Inspect(ctx, furiousFuruncle.ID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(cntr).To(PointTo(MatchFields(IgnoreExtras, Fields{
-			"ID": Equal(furiousFuruncle.ID),
-		})))
+		Expect(cntr).To(HaveValue(
+			HaveField("ID", Equal(furiousFuruncle.ID))))
 
 		mm.AddContainer(deadDummy)
 		_, err = ec.Inspect(ctx, deadDummy.ID)
@@ -100,9 +109,8 @@ var _ = Describe("moby engineclient", func() {
 
 		cntr, err := ec.List(ctx)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(cntr).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
-			"ID": Equal(furiousFuruncle.ID),
-		}))))
+		Expect(cntr).To(ConsistOf(HaveValue(
+			HaveField("ID", Equal(furiousFuruncle.ID)))))
 
 		cancel()
 		_, err = ec.List(ctx)
@@ -120,32 +128,32 @@ var _ = Describe("moby engineclient", func() {
 		Consistently(errs).ShouldNot(Receive())
 
 		mm.AddContainer(madMay)
-		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
-			"ID":      Equal(madMay.ID),
-			"Type":    Equal(engineclient.ContainerStarted),
-			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
-		})))
+		Eventually(evs).Should(Receive(And(
+			HaveField("ID", Equal(madMay.ID)),
+			HaveField("Type", Equal(engineclient.ContainerStarted)),
+			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+		)))
 
 		mm.PauseContainer(madMay.ID)
-		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
-			"ID":      Equal(madMay.ID),
-			"Type":    Equal(engineclient.ContainerPaused),
-			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
-		})))
+		Eventually(evs).Should(Receive(And(
+			HaveField("ID", Equal(madMay.ID)),
+			HaveField("Type", Equal(engineclient.ContainerPaused)),
+			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+		)))
 
 		mm.UnpauseContainer(madMay.ID)
-		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
-			"ID":      Equal(madMay.ID),
-			"Type":    Equal(engineclient.ContainerUnpaused),
-			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
-		})))
+		Eventually(evs).Should(Receive(And(
+			HaveField("ID", Equal(madMay.ID)),
+			HaveField("Type", Equal(engineclient.ContainerUnpaused)),
+			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+		)))
 
 		mm.RemoveContainer(madMay.ID)
-		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
-			"ID":      Equal(madMay.ID),
-			"Type":    Equal(engineclient.ContainerExited),
-			"Project": Equal(madMay.Labels[ComposerProjectLabel]),
-		})))
+		Eventually(evs).Should(Receive(And(
+			HaveField("ID", Equal(madMay.ID)),
+			HaveField("Type", Equal(engineclient.ContainerExited)),
+			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+		)))
 
 		cancel()
 		Eventually(errs).Should(Receive(Equal(ctx.Err())))

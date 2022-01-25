@@ -22,7 +22,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	. "github.com/thediveo/errxpect"
 )
 
 var _ = Describe("inspects mocked containers", func() {
@@ -31,7 +30,7 @@ var _ = Describe("inspects mocked containers", func() {
 		mm := NewMockingMoby()
 		defer mm.Close()
 
-		Errxpect(mm.ContainerInspect(context.Background(), "foo")).To(HaveOccurred())
+		Expect(mm.ContainerInspect(context.Background(), "foo")).Error().To(HaveOccurred())
 
 		mm.AddContainer(furiousFuruncle)
 		details, err := mm.ContainerInspect(context.Background(), furiousFuruncle.ID)
@@ -103,7 +102,7 @@ var _ = Describe("inspects mocked containers", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Errxpect(mm.ContainerInspect(ctx, "foo")).To(HaveOccurred())
+		Expect(mm.ContainerInspect(ctx, "foo")).Error().To(HaveOccurred())
 	})
 
 	It("registers and calls hooks", func() {

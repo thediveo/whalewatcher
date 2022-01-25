@@ -16,7 +16,6 @@ package moby
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -128,7 +127,7 @@ func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, err
 			// silently ignore missing containers that have gone since the list
 			// was prepared, but abort on severe problems in order to not keep
 			// this running for too long unnecessarily.
-			if !client.IsErrNotFound(err) {
+			if !engineclient.IsProcesslessContainer(err) && !client.IsErrNotFound(err) {
 				return nil, err
 			}
 		}
@@ -144,7 +143,7 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 		return nil, err
 	}
 	if details.State == nil || details.State.Pid == 0 {
-		return nil, fmt.Errorf("Docker container '%s' has no initial process", nameorid)
+		return nil, engineclient.NewProcesslessContainerError(nameorid, "Docker")
 	}
 	cntr := &whalewatcher.Container{
 		ID:      details.ID,

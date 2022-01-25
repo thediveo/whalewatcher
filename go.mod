@@ -11,7 +11,6 @@ require (
 	github.com/onsi/gomega v1.18.0
 	github.com/opencontainers/image-spec v1.0.2
 	github.com/ory/dockertest/v3 v3.8.1
-	github.com/thediveo/errxpect v0.11.0
 )
 
 require (
@@ -41,7 +40,6 @@ require (
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/sys/mountinfo v0.5.0 // indirect
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
-	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/runc v1.1.0 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect

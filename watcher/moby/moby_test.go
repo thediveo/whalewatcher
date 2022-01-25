@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
 	"github.com/ory/dockertest/v3"
 	"github.com/thediveo/whalewatcher/engineclient/moby"
 )
@@ -54,13 +53,13 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		Expect(dc).NotTo(BeNil())
 		networks, err := dc.NetworkList(ctx, types.NetworkListOptions{})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(networks).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-			"Name":   Equal("bridge"),
-			"Driver": Equal("bridge"),
-		})))
+		Expect(networks).To(ContainElement(And(
+			HaveField("Name", Equal("bridge")),
+			HaveField("Driver", Equal("bridge")),
+		)))
 	})
 
-	It("watches", func() {
+	It("watches", Serial, func() {
 		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mw.PID()).To(Equal(123456))

@@ -16,6 +16,7 @@ package engineclient
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/thediveo/whalewatcher"
 )
@@ -75,4 +76,28 @@ type ContainerEvent struct {
 	Type    ContainerEventType // type of lifecycle event.
 	ID      string             // ID (or name) of container.
 	Project string             // optional composer project name, or zero.
+}
+
+// ErrProcesslessContainer is a custom error indicating that a container details
+// inspection failed to be done on a container without any process, such as a
+// container created, yet not started.
+type ErrProcesslessContainer string
+
+// Error returns the error message.
+func (err ErrProcesslessContainer) Error() string {
+	return string(err)
+}
+
+// NewProcesslessContainerError returns a new ErrProcesslessContainer, stating
+// the type of container and its name or ID.
+func NewProcesslessContainerError(nameorid string, typ string) error {
+	return ErrProcesslessContainer(fmt.Sprintf(
+		"%s container '%s' has no initial process", typ, nameorid))
+}
+
+// IsProcesslessContainer returns true if the specified error is an
+// ProcesslessContainerErr.
+func IsProcesslessContainer(err error) bool {
+	_, ok := err.(ErrProcesslessContainer)
+	return ok
 }

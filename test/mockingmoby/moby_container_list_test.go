@@ -21,8 +21,6 @@ import (
 	"github.com/docker/docker/api/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
-	. "github.com/thediveo/errxpect"
 )
 
 var _ = Describe("lists mocked containers", func() {
@@ -50,12 +48,8 @@ var _ = Describe("lists mocked containers", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cntrs).To(HaveLen(2))
 		Expect(cntrs).To(ConsistOf(
-			MatchFields(IgnoreExtras, Fields{
-				"ID": Equal(mockingMoby.ID),
-			}),
-			MatchFields(IgnoreExtras, Fields{
-				"ID": Equal(furiousFuruncle.ID),
-			}),
+			HaveField("ID", Equal(mockingMoby.ID)),
+			HaveField("ID", Equal(furiousFuruncle.ID)),
 		))
 	})
 
@@ -66,7 +60,7 @@ var _ = Describe("lists mocked containers", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Errxpect(mm.ContainerList(ctx, types.ContainerListOptions{})).To(HaveOccurred())
+		Expect(mm.ContainerList(ctx, types.ContainerListOptions{})).Error().To(HaveOccurred())
 	})
 
 	It("registers and calls hooks", func() {
