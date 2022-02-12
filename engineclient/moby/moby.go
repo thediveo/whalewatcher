@@ -94,6 +94,15 @@ func (mw *MobyWatcher) ID(ctx context.Context) string {
 // Type returns the type identifier for this container engine.
 func (mw *MobyWatcher) Type() string { return Type }
 
+// Version information about the engine.
+func (mw *MobyWatcher) Version(ctx context.Context) string {
+	info, err := mw.moby.Info(ctx)
+	if err == nil {
+		return info.ServerVersion
+	}
+	return ""
+}
+
 // API returns the container engine API path.
 func (mw *MobyWatcher) API() string { return mw.moby.DaemonHost() }
 

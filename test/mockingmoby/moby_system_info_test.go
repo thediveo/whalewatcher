@@ -29,6 +29,7 @@ var _ = Describe("informs", func() {
 		info, err := mm.Info(context.Background())
 		Expect(err).NotTo(HaveOccurred())
 		Expect(info.ID).To(HaveLen(6*(4+1+4+1) - 1))
+		Expect(info.ServerVersion).NotTo(BeEmpty())
 	})
 
 	It("recognizes cancelled context", func() {

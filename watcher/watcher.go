@@ -52,6 +52,8 @@ type Watcher interface {
 	// Identifier of the type of container engine, such as "docker.com",
 	// "containerd.io", et cetera.
 	Type() string
+	// Engine version information.
+	Version(ctx context.Context) string
 	// Container engine API path.
 	API() string
 	// Container engine PID, when known.
@@ -131,6 +133,11 @@ func (ww *watcher) ID(ctx context.Context) string {
 // Identifier of the type of container engine, such as "docker.com",
 // "containerd.io", et cetera.
 func (ww *watcher) Type() string { return ww.engine.Type() }
+
+// Version returns the engine-specific version information string.
+func (ww *watcher) Version(ctx context.Context) string {
+	return ww.engine.Version(ctx)
+}
 
 // Container engine API path.
 func (ww *watcher) API() string { return ww.engine.API() }

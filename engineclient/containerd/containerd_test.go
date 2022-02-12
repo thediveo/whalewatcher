@@ -31,7 +31,7 @@ import (
 
 var _ = Describe("containerd engineclient", func() {
 
-	It("has engine ID", func() {
+	It("has engine ID and version", func() {
 		if os.Getegid() != 0 {
 			Skip("needs root")
 		}
@@ -43,6 +43,7 @@ var _ = Describe("containerd engineclient", func() {
 
 		Expect(cw.PID()).To(Equal(123456))
 		Expect(cw.ID(context.Background())).NotTo(BeEmpty())
+		Expect(cw.Version(context.Background())).NotTo(BeEmpty())
 	})
 
 	It("survives cancelled contexts", func() {
@@ -113,6 +114,7 @@ var _ = Describe("containerd engineclient", func() {
 		// test...
 		_, _ = cdclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: bibi})
 		_ = cdclient.ContainerService().Delete(wwctx, bibi)
+		_ = cdclient.SnapshotService("").Remove(wwctx, bibi+"-snapshot")
 
 		By("pulling a busybox image")
 		// Pull a busybox image, if not already locally available.
@@ -228,6 +230,7 @@ var _ = Describe("containerd engineclient", func() {
 		// test...
 		_, _ = cwclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: momo})
 		_ = cwclient.ContainerService().Delete(wwctx, momo)
+		_ = cwclient.SnapshotService("").Remove(wwctx, momo+"-snapshot")
 
 		// Pull a busybox image, if not already locally available.
 		busyboximg, err := cwclient.Pull(wwctx,

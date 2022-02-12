@@ -16,6 +16,7 @@ package containerd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/containerd/containerd"
@@ -103,6 +104,15 @@ func (cw *ContainerdWatcher) ID(ctx context.Context) string {
 
 // Type returns the type identifier for this container engine.
 func (cw *ContainerdWatcher) Type() string { return Type }
+
+// Version information about the engine.
+func (cw *ContainerdWatcher) Version(ctx context.Context) string {
+	version, err := cw.client.Version(ctx)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%s %s", version.Version, version.Revision)
+}
 
 // API returns the container engine API path.
 func (cw *ContainerdWatcher) API() string { return cw.client.Conn().Target() }

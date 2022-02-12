@@ -27,6 +27,7 @@ func (mm *MockingMoby) Info(ctx context.Context) (types.Info, error) {
 		return types.Info{}, err
 	}
 	return types.Info{
-		ID: "MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY",
+		ID:            "MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY",
+		ServerVersion: "42.66.6",
 	}, nil
 }
