@@ -5,20 +5,27 @@
 ![build and test](https://github.com/thediveo/whalewatcher/workflows/build%20and%20test/badge.svg?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
 
-`whalewatcher` is a simple Golang module that watches Docker and plain
-containerd containers becoming "alive" with processes and later die, keeping
-track of only the "alive" containers. On purpose, this module focuses solely on
-_running_ and _paused_ containers, so those only that have at least an initial
-container process running (and thus a PID).
+`whalewatcher` is a simple Golang module that relieves applications from the
+tedious task of either constantly monitoring "alive" container workloads by
+watching boring event streams or alternatively polling whenever the apps needs
+an up-to-date view of the workload. Using this module, an application can simply
+ask for the current state of affairs: which containers are alive right now? And
+what composer projects are (somehow) alive?
 
-Envisioned use cases are container-aware tools – such as
-[lxkns](https://github.com/thediveo/lxkns) – that seemingly randomly need the
-current state of affairs for all running containers. That is, tools that yet do
-not want to do the ugly lifting of container engine event tracking, engine state
-resynchronization after reconnects, et cetera. Here, the `whalewatcher` module
-reduces system load especially when state is requested in bursts, as it offers a
-load-optimized kind of "cache". Yet this cache is always closely synchronized to
-the container engine state.
+This module watches Docker and plain containerd containers becoming "alive" with
+processes and later die, keeping track of only the "alive" containers. On
+purpose, `whalewatcher` focuses solely on _running_ and _paused_ containers, so
+those only that have at least an initial container process running (and thus a
+PID).
+
+Thus, use cases for `whalewatcher` are container-aware tools that seemingly
+randomly need the current state of affairs for all running containers – such as
+[lxkns](https://github.com/thediveo/lxkns). These tools themselves now don't
+need anymore to do the ugly lifting of container engine event tracking, engine
+state resynchronization after reconnects, et cetera. Here, the `whalewatcher`
+module reduces system load especially when state is requested in bursts, as it
+offers a load-optimized kind of "cache". Yet this cache is always closely
+synchronized to the container engine state.
 
 > 🛈 If your application requires immediate action upon container lifecycle
 > events then our `whalewatcher` **isn't the right module** for it: our module
@@ -34,6 +41,10 @@ the container engine state.
 - supports different container engines:
   - [Docker/Moby](https://github.com/moby/moby)
   - plain [containerd](https://github.com/containerd/containerd)
+  - in the future, when [cri-o/cri-o issue 5609, _[RFE] Event API for container
+    lifecycle events_](https://github.com/cri-o/cri-o/issues/5609) hopefully
+    will be implemented, [cri-o](https://cri-o.io/) can be supported some day
+    too. 
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
   - [nerdctl](https://github.com/containerd/nerdctl)
