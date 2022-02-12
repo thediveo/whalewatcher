@@ -69,8 +69,9 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		ww.Close()
 	})
 
-	It("returns the engine ID", func() {
-		Expect(ww.ID(context.Background())).NotTo(BeZero())
+	It("returns the engine ID and version", func() {
+		Expect(ww.ID(context.Background())).NotTo(BeEmpty())
+		Expect(ww.Version(context.Background())).NotTo(BeEmpty())
 	})
 
 	It("has type and API path", func() {

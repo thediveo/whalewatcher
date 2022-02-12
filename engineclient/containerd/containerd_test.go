@@ -31,7 +31,7 @@ import (
 
 var _ = Describe("containerd engineclient", func() {
 
-	It("has engine ID", func() {
+	It("has engine ID and version", func() {
 		if os.Getegid() != 0 {
 			Skip("needs root")
 		}
@@ -43,6 +43,7 @@ var _ = Describe("containerd engineclient", func() {
 
 		Expect(cw.PID()).To(Equal(123456))
 		Expect(cw.ID(context.Background())).NotTo(BeEmpty())
+		Expect(cw.Version(context.Background())).NotTo(BeEmpty())
 	})
 
 	It("survives cancelled contexts", func() {

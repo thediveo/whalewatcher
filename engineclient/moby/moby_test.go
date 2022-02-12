@@ -69,9 +69,10 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.API()).NotTo(BeEmpty())
 	})
 
-	It("has an ID", func() {
+	It("has an ID and version", func() {
 		ctx, cancel := context.WithCancel(context.Background())
-		Expect(ec.ID(ctx)).ToNot(BeZero())
+		Expect(ec.ID(ctx)).ToNot(BeEmpty())
+		Expect(ec.Version(ctx)).NotTo(BeEmpty())
 		cancel()
 		Expect(ec.ID(ctx)).To(BeZero())
 	})

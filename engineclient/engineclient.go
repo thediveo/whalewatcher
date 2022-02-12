@@ -42,6 +42,8 @@ type EngineClient interface {
 	// Identifier of the type of container engine, such as "docker.com",
 	// "containerd.io", et cetera.
 	Type() string
+	// Version information about the engine.
+	Version(ctx context.Context) string
 	// Container engine API path.
 	API() string
 	// Container engine PID, when known. Otherwise zero.
