@@ -27,6 +27,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 var _ = Describe("containerd engineclient", func() {
@@ -148,8 +149,8 @@ var _ = Describe("containerd engineclient", func() {
 
 		By("receiving the newly started container/task event")
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerStarted)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerStarted),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		By("listing the newly started container/task")
@@ -157,8 +158,8 @@ var _ = Describe("containerd engineclient", func() {
 		containers, err := cw.List(wwctx)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(containers).To(ContainElement(HaveValue(And(
-			HaveField("ID", Equal(testns+"/"+bibi)),
-			HaveField("Name", Equal(testns+"/rappelfatz")),
+			HaveID(testns+"/"+bibi),
+			HaveName(testns+"/rappelfatz"),
 		))))
 
 		By("getting details of the newly started container/task")
@@ -166,24 +167,24 @@ var _ = Describe("containerd engineclient", func() {
 		container, err := cw.Inspect(wwctx, testns+"/"+bibi)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(container).To(HaveValue(And(
-			HaveField("ID", Equal(testns+"/"+bibi)),
-			HaveField("Name", Equal(testns+"/rappelfatz")),
+			HaveID(testns+"/"+bibi),
+			HaveName(testns+"/rappelfatz"),
 		)))
 
 		By("pausing container/task")
 		// pause...
 		Expect(buzzybockstask.Pause(wwctx)).NotTo(HaveOccurred())
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerPaused)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerPaused),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		By("unpausing container/task")
 		// ...and unpause it.
 		Expect(buzzybockstask.Resume(wwctx)).NotTo(HaveOccurred())
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerUnpaused)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerUnpaused),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		By("deleting container/task")
@@ -194,8 +195,8 @@ var _ = Describe("containerd engineclient", func() {
 		By("receiving container/task exit event")
 		// We should see or have seen the corresponding task exit event...
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerExited)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerExited),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		// Shut down the engine event stream and make sure that it closes the
@@ -204,80 +205,82 @@ var _ = Describe("containerd engineclient", func() {
 		Eventually(errs).Should(BeClosed())
 	})
 
-	It("ignores Docker containers at containerd level", func() {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
+	Context("dynamic container workload", Ordered, func() {
 
-		const mobyns = "moby"
-		const momo = "morbid_moby"
+		It("ignores Docker containers at containerd level", func() {
+			if os.Getegid() != 0 {
+				Skip("needs root")
+			}
 
-		cwclient, err := containerd.New("/run/containerd/containerd.sock")
-		Expect(err).NotTo(HaveOccurred())
-		cw := NewContainerdWatcher(cwclient)
-		Expect(cw).NotTo(BeNil())
-		defer cw.Close()
+			const mobyns = "moby"
+			const momo = "morbid_moby"
 
-		Expect(cw.Type()).To(Equal(Type))
-		Expect(cw.API()).NotTo(BeEmpty())
+			cwclient, err := containerd.New("/run/containerd/containerd.sock")
+			Expect(err).NotTo(HaveOccurred())
+			cw := NewContainerdWatcher(cwclient)
+			Expect(cw).NotTo(BeNil())
+			defer cw.Close()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		evs, errs := cw.LifecycleEvents(ctx)
+			Expect(cw.Type()).To(Equal(Type))
+			Expect(cw.API()).NotTo(BeEmpty())
 
-		wwctx := namespaces.WithNamespace(context.Background(), mobyns)
+			ctx, cancel := context.WithCancel(context.Background())
+			evs, errs := cw.LifecycleEvents(ctx)
 
-		// Clean up any trash left from a previously crashed/panic'ed unit
-		// test...
-		_, _ = cwclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: momo})
-		_ = cwclient.ContainerService().Delete(wwctx, momo)
-		_ = cwclient.SnapshotService("").Remove(wwctx, momo+"-snapshot")
+			wwctx := namespaces.WithNamespace(context.Background(), mobyns)
 
-		// Pull a busybox image, if not already locally available.
-		busyboximg, err := cwclient.Pull(wwctx,
-			"docker.io/library/busybox:latest", containerd.WithPullUnpack)
-		Expect(err).NotTo(HaveOccurred())
+			// Clean up any trash left from a previously crashed/panic'ed unit
+			// test...
+			_, _ = cwclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: momo})
+			_ = cwclient.ContainerService().Delete(wwctx, momo)
+			_ = cwclient.SnapshotService("").Remove(wwctx, momo+"-snapshot")
 
-		// Run a test container by creating container+task, in Docker's moby
-		// namespace.
-		morbidmoby, err := cwclient.NewContainer(wwctx,
-			momo,
-			containerd.WithNewSnapshot(momo+"-snapshot", busyboximg),
-			containerd.WithNewSpec(oci.WithImageConfigArgs(busyboximg,
-				[]string{"/bin/sleep", "30s"})))
-		Expect(err).NotTo(HaveOccurred())
-		defer func() {
-			_ = morbidmoby.Delete(wwctx, containerd.WithSnapshotCleanup)
-		}()
-		morbidmobystask, err := morbidmoby.NewTask(wwctx, cio.NewCreator())
-		Expect(err).NotTo(HaveOccurred())
-		defer func() {
-			_, _ = morbidmobystask.Delete(wwctx, containerd.WithProcessKill)
-		}()
-		err = morbidmobystask.Start(wwctx)
-		Expect(err).NotTo(HaveOccurred())
+			// Pull a busybox image, if not already locally available.
+			busyboximg, err := cwclient.Pull(wwctx,
+				"docker.io/library/busybox:latest", containerd.WithPullUnpack)
+			Expect(err).NotTo(HaveOccurred())
 
-		// We should never see any event for Docker-originating containers.
-		Eventually(evs).ShouldNot(Receive(
-			HaveField("ID", Equal(mobyns+"/"+momo))))
+			// Run a test container by creating container+task, in Docker's moby
+			// namespace.
+			morbidmoby, err := cwclient.NewContainer(wwctx,
+				momo,
+				containerd.WithNewSnapshot(momo+"-snapshot", busyboximg),
+				containerd.WithNewSpec(oci.WithImageConfigArgs(busyboximg,
+					[]string{"/bin/sleep", "30s"})))
+			Expect(err).NotTo(HaveOccurred())
+			defer func() {
+				_ = morbidmoby.Delete(wwctx, containerd.WithSnapshotCleanup)
+			}()
+			morbidmobystask, err := morbidmoby.NewTask(wwctx, cio.NewCreator())
+			Expect(err).NotTo(HaveOccurred())
+			defer func() {
+				_, _ = morbidmobystask.Delete(wwctx, containerd.WithProcessKill)
+			}()
+			err = morbidmobystask.Start(wwctx)
+			Expect(err).NotTo(HaveOccurred())
 
-		// We must not see this started container, as it is in the blocked
-		// "moby" namespace.
-		cntrs, err := cw.List(ctx)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(cntrs).NotTo(ContainElement(HaveValue(
-			HaveField("ID", Equal(mobyns+"/"+momo)))))
+			// We should never see any event for Docker-originating containers.
+			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
 
-		// Get rid of the task.
-		_, err = morbidmobystask.Delete(wwctx, containerd.WithProcessKill)
-		Expect(err).NotTo(HaveOccurred())
+			// We must not see this started container, as it is in the blocked
+			// "moby" namespace.
+			cntrs, err := cw.List(ctx)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cntrs).NotTo(ContainElement(HaveValue(HaveID(mobyns + "/" + momo))))
 
-		// We should see or have seen the corresponding task exit event...
-		Eventually(evs).ShouldNot(Receive(
-			HaveField("ID", Equal(mobyns+"/"+momo))))
+			// Get rid of the task.
+			_, err = morbidmobystask.Delete(wwctx, containerd.WithProcessKill)
+			Expect(err).NotTo(HaveOccurred())
 
-		// Shut down the engine event stream and make sure that it closes the
-		// error stream properly to signal its end...
-		cancel()
-		Eventually(errs).Should(BeClosed())
+			// We should see or have seen the corresponding task exit event...
+			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
+
+			// Shut down the engine event stream and make sure that it closes the
+			// error stream properly to signal its end...
+			cancel()
+			Eventually(errs).Should(BeClosed())
+		})
+
 	})
+
 })

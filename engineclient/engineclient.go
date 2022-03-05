@@ -80,9 +80,15 @@ type ContainerEvent struct {
 	Project string             // optional composer project name, or zero.
 }
 
-// ErrProcesslessContainer is a custom error indicating that a container details
-// inspection failed to be done on a container without any process, such as a
-// container created, yet not started.
+// ErrProcesslessContainer is a custom error indicating that inspecting
+// container details failed because it was a container without any process (yet
+// or anymore), such as a container freshly created, and yet not started.
+//
+// This usually happens due to transient changes between listing containers or
+// processing lifecycle-related events and inspecting them, because there are no
+// atomic operations available (and strictly necessary). There are already
+// checks in place that usually avoid this error in static situations, but they
+// can never give one hundred percent garantuees.
 type ErrProcesslessContainer string
 
 // Error returns the error message.

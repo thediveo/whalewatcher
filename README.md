@@ -5,12 +5,16 @@
 ![build and test](https://github.com/thediveo/whalewatcher/workflows/build%20and%20test/badge.svg?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
 
-`whalewatcher` is a simple Golang module that relieves applications from the
-tedious task of either constantly monitoring "alive" container workloads by
-watching boring event streams or alternatively polling whenever the apps needs
-an up-to-date view of the workload. Using this module, an application can simply
-ask for the current state of affairs: which containers are alive right now? And
-what composer projects are (somehow) alive?
+🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
+the tedious task of constantly monitoring "alive" container workloads: no need
+to watching boring event streams or alternatively polling to have the accurate
+picture.
+
+Using `whalewatcher` an application can simply ask for the current state of
+affairs at any time and without causing load: which containers are alive right
+now? And what composer projects are in use?
+
+## Stayin' Alive
 
 This module watches Docker and plain containerd containers becoming "alive" with
 processes and later die, keeping track of only the "alive" containers. On
@@ -29,8 +33,8 @@ synchronized to the container engine state.
 
 > 🛈 If your application requires immediate action upon container lifecycle
 > events then our `whalewatcher` **isn't the right module** for it: our module
-> is design for those use cases where the application needing information about
-> containers is completely decoupled from container lifecycle events.
+> is designed for those use cases where the application needing information
+> about containers is completely decoupled from container lifecycle events.
 
 ## Features
 
@@ -118,6 +122,10 @@ func main() {
 
 This project comes with comprehensive unit tests, including (limited) mocking of
 Docker clients to the small extend required for whale watching.
+
+> **Note:** do **not run tests** for multiple packages **in parallel**. `make
+test` ensures that, but in case you run `go test` yourself, please don't forget
+`-p 1` when testing multiple packages in one, _erm_, go.
 
 ## Copyright and License
 
