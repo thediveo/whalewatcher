@@ -119,6 +119,10 @@ func main() {
 This project comes with comprehensive unit tests, including (limited) mocking of
 Docker clients to the small extend required for whale watching.
 
+One important note: do not run tests for multiple packages in parallel. `make
+test` covers that, but in case you run `go test` yourself, please don't forget
+`-p 1` when testing multiple packages in one, _erm_, go.
+
 ## Copyright and License
 
 Copyright 2021 Harald Albrecht, licensed under the Apache License, Version 2.0.
