@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 var (
@@ -93,8 +94,7 @@ var _ = Describe("moby engineclient", func() {
 
 		cntr, err := ec.Inspect(ctx, furiousFuruncle.ID)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(cntr).To(HaveValue(
-			HaveField("ID", Equal(furiousFuruncle.ID))))
+		Expect(cntr).To(HaveID(furiousFuruncle.ID))
 
 		mm.AddContainer(deadDummy)
 		_, err = ec.Inspect(ctx, deadDummy.ID)
@@ -110,8 +110,7 @@ var _ = Describe("moby engineclient", func() {
 
 		cntr, err := ec.List(ctx)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(cntr).To(ConsistOf(HaveValue(
-			HaveField("ID", Equal(furiousFuruncle.ID)))))
+		Expect(cntr).To(ConsistOf(HaveID(furiousFuruncle.ID)))
 
 		cancel()
 		_, err = ec.List(ctx)
@@ -128,32 +127,36 @@ var _ = Describe("moby engineclient", func() {
 		Consistently(evs).ShouldNot(Receive())
 		Consistently(errs).ShouldNot(Receive())
 
+		By("adding a new container")
 		mm.AddContainer(madMay)
 		Eventually(evs).Should(Receive(And(
-			HaveField("ID", Equal(madMay.ID)),
-			HaveField("Type", Equal(engineclient.ContainerStarted)),
-			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+			HaveID(madMay.ID),
+			HaveEventType(engineclient.ContainerStarted),
+			HaveProject(madMay.Labels[ComposerProjectLabel]),
 		)))
 
+		By("pausing the container")
 		mm.PauseContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
-			HaveField("ID", Equal(madMay.ID)),
-			HaveField("Type", Equal(engineclient.ContainerPaused)),
-			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+			HaveID(madMay.ID),
+			HaveEventType(engineclient.ContainerPaused),
+			HaveProject(madMay.Labels[ComposerProjectLabel]),
 		)))
 
+		By("unpausing the container")
 		mm.UnpauseContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
-			HaveField("ID", Equal(madMay.ID)),
-			HaveField("Type", Equal(engineclient.ContainerUnpaused)),
-			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+			HaveID(madMay.ID),
+			HaveEventType(engineclient.ContainerUnpaused),
+			HaveProject(madMay.Labels[ComposerProjectLabel]),
 		)))
 
+		By("removing the container")
 		mm.RemoveContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
-			HaveField("ID", Equal(madMay.ID)),
-			HaveField("Type", Equal(engineclient.ContainerExited)),
-			HaveField("Project", Equal(madMay.Labels[ComposerProjectLabel])),
+			HaveID(madMay.ID),
+			HaveEventType(engineclient.ContainerExited),
+			HaveProject(madMay.Labels[ComposerProjectLabel]),
 		)))
 
 		cancel()

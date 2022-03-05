@@ -27,6 +27,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 var _ = Describe("containerd engineclient", func() {
@@ -148,8 +149,8 @@ var _ = Describe("containerd engineclient", func() {
 
 		By("receiving the newly started container/task event")
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerStarted)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerStarted),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		By("listing the newly started container/task")
@@ -157,8 +158,8 @@ var _ = Describe("containerd engineclient", func() {
 		containers, err := cw.List(wwctx)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(containers).To(ContainElement(HaveValue(And(
-			HaveField("ID", Equal(testns+"/"+bibi)),
-			HaveField("Name", Equal(testns+"/rappelfatz")),
+			HaveID(testns+"/"+bibi),
+			HaveName(testns+"/rappelfatz"),
 		))))
 
 		By("getting details of the newly started container/task")
@@ -166,24 +167,24 @@ var _ = Describe("containerd engineclient", func() {
 		container, err := cw.Inspect(wwctx, testns+"/"+bibi)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(container).To(HaveValue(And(
-			HaveField("ID", Equal(testns+"/"+bibi)),
-			HaveField("Name", Equal(testns+"/rappelfatz")),
+			HaveID(testns+"/"+bibi),
+			HaveName(testns+"/rappelfatz"),
 		)))
 
 		By("pausing container/task")
 		// pause...
 		Expect(buzzybockstask.Pause(wwctx)).NotTo(HaveOccurred())
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerPaused)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerPaused),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		By("unpausing container/task")
 		// ...and unpause it.
 		Expect(buzzybockstask.Resume(wwctx)).NotTo(HaveOccurred())
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerUnpaused)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerUnpaused),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		By("deleting container/task")
@@ -194,8 +195,8 @@ var _ = Describe("containerd engineclient", func() {
 		By("receiving container/task exit event")
 		// We should see or have seen the corresponding task exit event...
 		Eventually(evs).Should(Receive(And(
-			HaveField("Type", Equal(engineclient.ContainerExited)),
-			HaveField("ID", Equal(testns+"/"+bibi)),
+			HaveEventType(engineclient.ContainerExited),
+			HaveID(testns+"/"+bibi),
 		)))
 
 		// Shut down the engine event stream and make sure that it closes the
@@ -259,23 +260,20 @@ var _ = Describe("containerd engineclient", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// We should never see any event for Docker-originating containers.
-			Eventually(evs).ShouldNot(Receive(
-				HaveField("ID", Equal(mobyns+"/"+momo))))
+			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
 
 			// We must not see this started container, as it is in the blocked
 			// "moby" namespace.
 			cntrs, err := cw.List(ctx)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cntrs).NotTo(ContainElement(HaveValue(
-				HaveField("ID", Equal(mobyns+"/"+momo)))))
+			Expect(cntrs).NotTo(ContainElement(HaveValue(HaveID(mobyns + "/" + momo))))
 
 			// Get rid of the task.
 			_, err = morbidmobystask.Delete(wwctx, containerd.WithProcessKill)
 			Expect(err).NotTo(HaveOccurred())
 
 			// We should see or have seen the corresponding task exit event...
-			Eventually(evs).ShouldNot(Receive(
-				HaveField("ID", Equal(mobyns+"/"+momo))))
+			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
 
 			// Shut down the engine event stream and make sure that it closes the
 			// error stream properly to signal its end...
