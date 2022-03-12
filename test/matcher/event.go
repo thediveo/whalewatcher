@@ -20,14 +20,6 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient"
 )
 
-// BeAContainerEvent succeeds when the actual value is a ContainerEvent and
-// additionally all passed matchers also succeed.
-func BeAContainerEvent(matchers ...types.GomegaMatcher) types.GomegaMatcher {
-	return o.WithTransform(func(actual engineclient.ContainerEvent) engineclient.ContainerEvent {
-		return actual // Gomega already did the type checking for us ;)
-	}, o.SatisfyAll(matchers...))
-}
-
 // HaveEventType succeeds if the actual value has a "Type" field with the
 // specified ContainerEventType value.
 func HaveEventType(evtype engineclient.ContainerEventType) types.GomegaMatcher {

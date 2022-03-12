@@ -8,7 +8,7 @@ clean: ## cleans up build and testing artefacts
 	rm -f coverage.html coverage.out coverage.txt
 
 godoc: ## serves godoc on port 6060
-	@godoc -http=:6060
+	@PATH=$(PATH):$(shell go env GOPATH)/bin; godoc -http=:6060
 
 report: ## run goreportcard on this module
 	@scripts/goreportcard.sh

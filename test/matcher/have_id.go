@@ -21,6 +21,10 @@ import (
 
 // HaveID succeeds if the actual value has an "ID" field and matches the
 // specified id.
+//
+// Example:
+//
+//   Expect(container).To(HaveID("12deadbeef90"))
 func HaveID(id interface{}) types.GomegaMatcher {
 	return o.HaveField("ID", id)
 }

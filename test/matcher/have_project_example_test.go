@@ -15,23 +15,18 @@
 package matcher
 
 import (
-	. "github.com/onsi/ginkgo/v2"
+	"github.com/thediveo/whalewatcher"
+
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("HaveOptionalField matcher", func() {
-
-	It("handles optional fields", func() {
-		type T struct {
-			Foo string
-		}
-		st := T{Foo: "foo"}
-		success, err := HaveOptionalField("Bar", "bar").Match(st)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(success).To(BeTrue()) // sic!
-
-		Expect(st).To(HaveOptionalField("Foo", "foo"))
-		Expect(st).NotTo(HaveOptionalField("Foo", "bar"))
-	})
-
-})
+func ExampleHaveProject() {
+	container := whalewatcher.Container{
+		Name:    "foolbar",
+		ID:      "12deadbeef89",
+		Project: "myproj",
+	}
+	Expect(container).To(HaveProject("myproj"))
+	Expect(container).NotTo(HaveProject("fred's-project"))
+	// Output:
+}

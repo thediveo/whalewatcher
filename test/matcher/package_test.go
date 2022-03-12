@@ -21,7 +21,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestContainerd(t *testing.T) {
+func init() {
 	RegisterFailHandler(Fail)
+}
+
+func TestMatcher(t *testing.T) {
 	RunSpecs(t, "test/matcher package")
 }

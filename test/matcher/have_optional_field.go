@@ -21,10 +21,12 @@ import (
 	"github.com/onsi/gomega/types"
 )
 
-// HaveOptionalField succeeds if actual is a strunct and the value of the
+// HaveOptionalField succeeds if actual is a struct and the value of the
 // specified field matches the specified matcher; it is no error for the field
-// to be non-existing, this matcher then does not succeed, but also does not
-// fail.
+// to be non-existing, this matcher then does succeed instead of failing.
+//
+// HaveOptionalField thus complements Gomega's HaveField matcher with gstruct
+// IgnoreMissing functionality in a simple matcher.
 func HaveOptionalField(field string, expected interface{}) types.GomegaMatcher {
 	return &haveOptionalFieldMatcher{
 		matchers.HaveFieldMatcher{
@@ -41,11 +43,13 @@ type haveOptionalFieldMatcher struct {
 	matchers.HaveFieldMatcher
 }
 
-// Match almost works like Gomega's HaveFieldMatcher.Match, but ignores any
+// Match almost works like Gomega's HaveFieldMatcher.Match, but ignores a
+// missing field: it succeeds if the field is missing, but it doesn't succeed if
+// the field is present, but the specified matcher doesn't succeed.
 func (matcher *haveOptionalFieldMatcher) Match(actual interface{}) (success bool, err error) {
 	success, err = matcher.HaveFieldMatcher.Match(actual)
 	if err != nil && reFieldError.MatchString(err.Error()) {
-		return false, nil
+		return true, nil // sic!
 	}
 	return
 }

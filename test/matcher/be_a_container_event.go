@@ -15,23 +15,15 @@
 package matcher
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	o "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
+	"github.com/thediveo/whalewatcher/engineclient"
 )
 
-var _ = Describe("HaveOptionalField matcher", func() {
-
-	It("handles optional fields", func() {
-		type T struct {
-			Foo string
-		}
-		st := T{Foo: "foo"}
-		success, err := HaveOptionalField("Bar", "bar").Match(st)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(success).To(BeTrue()) // sic!
-
-		Expect(st).To(HaveOptionalField("Foo", "foo"))
-		Expect(st).NotTo(HaveOptionalField("Foo", "bar"))
-	})
-
-})
+// BeAContainerEvent succeeds when the actual value is a ContainerEvent and
+// additionally all passed matchers also succeed.
+func BeAContainerEvent(matchers ...types.GomegaMatcher) types.GomegaMatcher {
+	return o.WithTransform(func(actual engineclient.ContainerEvent) engineclient.ContainerEvent {
+		return actual // Gomega already did the type checking for us ;)
+	}, o.SatisfyAll(matchers...))
+}

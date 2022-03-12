@@ -15,23 +15,19 @@
 package matcher
 
 import (
-	. "github.com/onsi/ginkgo/v2"
+	"github.com/thediveo/whalewatcher"
+
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("HaveOptionalField matcher", func() {
-
-	It("handles optional fields", func() {
-		type T struct {
-			Foo string
-		}
-		st := T{Foo: "foo"}
-		success, err := HaveOptionalField("Bar", "bar").Match(st)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(success).To(BeTrue()) // sic!
-
-		Expect(st).To(HaveOptionalField("Foo", "foo"))
-		Expect(st).NotTo(HaveOptionalField("Foo", "bar"))
-	})
-
-})
+func ExampleHaveOptionalField() {
+	project := whalewatcher.ComposerProject{
+		Name: "myproj",
+	}
+	// Do not pass ComposerProject by value, as it contains a lock.
+	Expect(&project).To(HaveName("myproj"))
+	// That's often pointless, unless you only want to check the expected value
+	// in case the field is present.
+	Expect(&project).To(HaveOptionalField("ID", "1234"))
+	// Output:
+}
