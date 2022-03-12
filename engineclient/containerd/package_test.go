@@ -26,5 +26,5 @@ func TestContainerd(t *testing.T) {
 	RegisterFailHandler(Fail)
 	_, reporterConfig := GinkgoConfiguration()
 	reporterConfig.SlowSpecThreshold = 30 * time.Second
-	RunSpecs(t, "engineclient/containerd package")
+	RunSpecs(t, "engineclient/containerd package", reporterConfig)
 }
