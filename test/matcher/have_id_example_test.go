@@ -15,25 +15,17 @@
 package matcher
 
 import (
-	. "github.com/onsi/ginkgo/v2"
+	"github.com/thediveo/whalewatcher"
+
 	. "github.com/onsi/gomega"
-	"github.com/thediveo/whalewatcher/engineclient"
 )
 
-var _ = Describe("BeAContainerEvent matcher", func() {
-
-	It("matches", func() {
-		cev := engineclient.ContainerEvent{
-			Type:    engineclient.ContainerStarted,
-			ID:      "ID42",
-			Project: "P",
-		}
-		Expect(cev).To(BeAContainerEvent(HaveID("ID42"), HaveEventType(engineclient.ContainerStarted)))
-		Expect(cev).NotTo(BeAContainerEvent(HaveID("ID42"), HaveEventType(engineclient.ContainerExited)))
-	})
-
-	It("properly fails for an unexpected type of actual", func() {
-		Expect(BeAContainerEvent(HaveID("ID42")).Match("foo")).Error().To(HaveOccurred())
-	})
-
-})
+func ExampleHaveID() {
+	container := whalewatcher.Container{
+		Name: "foolbar",
+		ID:   "12deadbeef89",
+	}
+	Expect(container).To(HaveID("12deadbeef89"))
+	Expect(container).NotTo(HaveID("foobar"))
+	// Output:
+}

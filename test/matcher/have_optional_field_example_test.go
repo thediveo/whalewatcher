@@ -25,9 +25,8 @@ func ExampleHaveOptionalField() {
 		Name: "myproj",
 	}
 	// Do not pass ComposerProject by value, as it contains a lock.
-	Expect(&project).To(HaveName("myproj"))
-	// That's often pointless, unless you only want to check the expected value
-	// in case the field is present.
-	Expect(&project).To(HaveOptionalField("ID", "1234"))
+	Expect(&project).To(HaveOptionalField("Name", "myproj"))
+	Expect(&project).NotTo(HaveOptionalField("Name", "steven's-proj"))
+	Expect(&project).NotTo(HaveOptionalField("ID", "1234"))
 	// Output:
 }

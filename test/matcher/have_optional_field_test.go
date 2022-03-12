@@ -21,15 +21,29 @@ import (
 
 var _ = Describe("HaveOptionalField matcher", func() {
 
-	It("handles optional fields", func() {
-		type T struct {
-			Foo string
-		}
-		st := T{Foo: "foo"}
-		success, err := HaveOptionalField("Bar", "bar").Match(st)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(success).To(BeTrue()) // sic!
+	type T struct {
+		Foo string
+	}
+	st := T{Foo: "foo"}
 
+	It("does not satisfy a missing field", func() {
+		m := HaveOptionalField("Bar", "bar")
+		success, err := m.Match(st)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(success).To(BeFalse())
+		Expect(m.FailureMessage(st)).To(MatchRegexp(`No field named 'Bar' in struct:`))
+	})
+
+	It("does not satisfy an existing field not satisfying the matcher", func() {
+		m := HaveOptionalField("Foo", "bar")
+		success, err := m.Match(st)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(success).To(BeFalse())
+		Expect(m.FailureMessage(st)).To(MatchRegexp(`Value for field 'Foo' failed to satisfy matcher.`))
+		Expect(m.NegatedFailureMessage(st)).To(MatchRegexp(`Value for field 'Foo' satisfied matcher, but should not have.`))
+	})
+
+	It("matches a satisfying field (or not)", func() {
 		Expect(st).To(HaveOptionalField("Foo", "foo"))
 		Expect(st).NotTo(HaveOptionalField("Foo", "bar"))
 	})
