@@ -1,4 +1,4 @@
-// Copyright 2021 Harald Albrecht.
+// Copyright 2022 Harald Albrecht.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package containerd
+package matcher
 
 import (
-	"testing"
-	"time"
+	"github.com/thediveo/whalewatcher"
 
-	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-func TestContainerd(t *testing.T) {
-	RegisterFailHandler(Fail)
-	_, reporterConfig := GinkgoConfiguration()
-	reporterConfig.SlowSpecThreshold = 30 * time.Second
-	RunSpecs(t, "engineclient/containerd package", reporterConfig)
+func ExampleHaveName() {
+	container := whalewatcher.Container{
+		Name: "foolbar",
+		ID:   "12deadbeef89",
+	}
+	Expect(container).To(HaveName("foolbar"))
+	Expect(container).NotTo(HaveName("foobar"))
+	// Output:
+}
+
+func ExampleHaveName_nameAndID() {
+	container := whalewatcher.Container{
+		Name: "12deadbeed89",
+		ID:   "12deadbeef89",
+	}
+	Expect(container).To(Or(HaveName("foolbar"), HaveID("12deadbeef89")))
+	// Output:
 }

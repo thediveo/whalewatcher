@@ -1,4 +1,4 @@
-// Copyright 2021 Harald Albrecht.
+// Copyright 2022 Harald Albrecht.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package containerd
+package matcher
 
 import (
-	"testing"
-	"time"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	o "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
+	"github.com/thediveo/whalewatcher/engineclient"
 )
 
-func TestContainerd(t *testing.T) {
-	RegisterFailHandler(Fail)
-	_, reporterConfig := GinkgoConfiguration()
-	reporterConfig.SlowSpecThreshold = 30 * time.Second
-	RunSpecs(t, "engineclient/containerd package", reporterConfig)
+// BeAContainerEvent succeeds when the actual value is a ContainerEvent and
+// additionally all passed matchers also succeed.
+func BeAContainerEvent(matchers ...types.GomegaMatcher) types.GomegaMatcher {
+	return o.WithTransform(func(actual engineclient.ContainerEvent) engineclient.ContainerEvent {
+		return actual // Gomega already did the type checking for us ;)
+	}, o.SatisfyAll(matchers...))
 }

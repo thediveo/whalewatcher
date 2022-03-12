@@ -20,25 +20,14 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient"
 )
 
-var _ = Describe("whalewatcher matchers", func() {
+var _ = Describe("HaveEventType matcher", func() {
 
-	Context("ContainerEvent", func() {
-
-		It("matches", func() {
-			cev := engineclient.ContainerEvent{
-				Type:    engineclient.ContainerStarted,
-				ID:      "ID42",
-				Project: "P",
-			}
-			Expect(cev).To(HaveEventType(engineclient.ContainerStarted))
-			Expect(cev).To(HaveID("ID42"))
-			Expect(cev).To(BeAContainerEvent(HaveID("ID42"), HaveEventType(engineclient.ContainerStarted)))
-		})
-
-		It("properly fails for unexpected type of actual", func() {
-			Expect(BeAContainerEvent(HaveID("ID42")).Match("foo")).Error().To(HaveOccurred())
-		})
-
+	It("matches", func() {
+		cev := engineclient.ContainerEvent{
+			Type: engineclient.ContainerStarted,
+		}
+		Expect(cev).To(HaveEventType(engineclient.ContainerStarted))
+		Expect(cev).NotTo(HaveEventType(engineclient.ContainerExited))
 	})
 
 })

@@ -1,4 +1,4 @@
-// Copyright 2021 Harald Albrecht.
+// Copyright 2022 Harald Albrecht.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,25 @@
 package matcher
 
 import (
-	"testing"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/thediveo/whalewatcher/engineclient"
 )
 
-func init() {
-	RegisterFailHandler(Fail)
-}
+var _ = Describe("BeAContainerEvent matcher", func() {
 
-func TestMatcher(t *testing.T) {
-	RunSpecs(t, "test/matcher package")
-}
+	It("matches", func() {
+		cev := engineclient.ContainerEvent{
+			Type:    engineclient.ContainerStarted,
+			ID:      "ID42",
+			Project: "P",
+		}
+		Expect(cev).To(BeAContainerEvent(HaveID("ID42"), HaveEventType(engineclient.ContainerStarted)))
+		Expect(cev).NotTo(BeAContainerEvent(HaveID("ID42"), HaveEventType(engineclient.ContainerExited)))
+	})
+
+	It("properly fails for an unexpected type of actual", func() {
+		Expect(BeAContainerEvent(HaveID("ID42")).Match("foo")).Error().To(HaveOccurred())
+	})
+
+})

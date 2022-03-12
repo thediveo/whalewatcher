@@ -26,5 +26,5 @@ func TestMobyWatcher(t *testing.T) {
 	RegisterFailHandler(Fail)
 	_, reporterConfig := GinkgoConfiguration()
 	reporterConfig.SlowSpecThreshold = 30 * time.Second
-	RunSpecs(t, "moby watcher constructor package")
+	RunSpecs(t, "moby watcher constructor package", reporterConfig)
 }
