@@ -25,6 +25,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/noleak"
 )
 
 var (
@@ -54,6 +55,10 @@ var (
 )
 
 var _ = Describe("watcher (of whales, not: Wales)", func() {
+
+	AfterEach(func() {
+		Eventually(Goroutines).ShouldNot(HaveLeaked())
+	})
 
 	var mm *mockingmoby.MockingMoby
 	var ww *watcher
