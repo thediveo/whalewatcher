@@ -30,7 +30,7 @@ import (
 
 var _ = Describe("Moby watcher engine end-to-end test", func() {
 
-	AfterEach(func(){
+	AfterEach(func() {
 		Eventually(Goroutines).ShouldNot(HaveLeaked())
 	})
 
