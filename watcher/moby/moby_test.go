@@ -20,13 +20,19 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/ory/dockertest/v3"
 	"github.com/thediveo/whalewatcher/engineclient/moby"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	. "github.com/thediveo/noleak"
 )
 
 var _ = Describe("Moby watcher engine end-to-end test", func() {
+
+	AfterEach(func(){
+		Eventually(Goroutines).ShouldNot(HaveLeaked())
+	})
 
 	It("doesn't accept invalid engine API paths", func() {
 		_, err := New("localhost:66666", nil)
