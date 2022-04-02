@@ -16,6 +16,7 @@ package containerd
 
 import (
 	"context"
+	"net/http"
 	"os"
 
 	"github.com/containerd/containerd"
@@ -23,14 +24,30 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/thediveo/whalewatcher/engineclient"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/noleak"
 	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 var _ = Describe("containerd engineclient", func() {
+
+	AfterEach(func() {
+		Eventually(Goroutines).ShouldNot(HaveLeaked())
+	})
+
+	It("containerd client doesn't leak goroutines", func() {
+		if os.Getegid() != 0 {
+			Skip("needs root")
+		}
+		cdclient, err := containerd.New("/run/containerd/containerd.sock")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cdclient.Server(context.Background())).Error().NotTo(HaveOccurred())
+		defer cdclient.Close()
+	})
 
 	It("has engine ID and version", func() {
 		if os.Getegid() != 0 {
@@ -109,7 +126,7 @@ var _ = Describe("containerd engineclient", func() {
 		cdclient, err := containerd.New("/run/containerd/containerd.sock")
 		Expect(err).NotTo(HaveOccurred())
 		defer cdclient.Close()
-		wwctx := namespaces.WithNamespace(context.Background(), testns)
+		wwctx := namespaces.WithNamespace(ctx, testns)
 
 		// Clean up any trash left from a previously crashed/panic'ed unit
 		// test...
@@ -117,11 +134,21 @@ var _ = Describe("containerd engineclient", func() {
 		_ = cdclient.ContainerService().Delete(wwctx, bibi)
 		_ = cdclient.SnapshotService("").Remove(wwctx, bibi+"-snapshot")
 
-		By("pulling a busybox image")
-		// Pull a busybox image, if not already locally available.
+		By("pulling a busybox image (if not already available locally)")
+		// OUCH! the default resolver keeps a persistent client around, so this
+		// triggers the goroutine leak detection. Thus, we need to explicitly
+		// supply our own (default) client, which we have control over. In
+		// particular, we can close its idle connections at the end of the test,
+		// getting rid of idling persistent connections. Sigh.
+		httpclnt := &http.Client{}
 		busyboximg, err := cdclient.Pull(wwctx,
-			"docker.io/library/busybox:latest", containerd.WithPullUnpack)
+			"docker.io/library/busybox:latest",
+			containerd.WithPullUnpack,
+			containerd.WithResolver(docker.NewResolver(docker.ResolverOptions{
+				Client: httpclnt,
+			})))
 		Expect(err).NotTo(HaveOccurred())
+		defer httpclnt.CloseIdleConnections()
 
 		By("creating a new container/task and starting it")
 		// Run a pausing test container by creating container+task, and finally
@@ -199,6 +226,7 @@ var _ = Describe("containerd engineclient", func() {
 			HaveID(testns+"/"+bibi),
 		)))
 
+		By("closing down the event stream")
 		// Shut down the engine event stream and make sure that it closes the
 		// error stream properly to signal its end...
 		cancel()
@@ -215,6 +243,7 @@ var _ = Describe("containerd engineclient", func() {
 			const mobyns = "moby"
 			const momo = "morbid_moby"
 
+			By("watching containerd engine")
 			cwclient, err := containerd.New("/run/containerd/containerd.sock")
 			Expect(err).NotTo(HaveOccurred())
 			cw := NewContainerdWatcher(cwclient)
@@ -227,7 +256,7 @@ var _ = Describe("containerd engineclient", func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			evs, errs := cw.LifecycleEvents(ctx)
 
-			wwctx := namespaces.WithNamespace(context.Background(), mobyns)
+			wwctx := namespaces.WithNamespace(ctx, mobyns)
 
 			// Clean up any trash left from a previously crashed/panic'ed unit
 			// test...
@@ -235,11 +264,23 @@ var _ = Describe("containerd engineclient", func() {
 			_ = cwclient.ContainerService().Delete(wwctx, momo)
 			_ = cwclient.SnapshotService("").Remove(wwctx, momo+"-snapshot")
 
-			// Pull a busybox image, if not already locally available.
+			By("pulling a busybox image (if not already available locally)")
+			// OUCH! the default resolver keeps a persistent client around, so this
+			// triggers the goroutine leak detection. Thus, we need to explicitly
+			// supply our own (default) client, which we have control over. In
+			// particular, we can close its idle connections at the end of the test,
+			// getting rid of idling persistent connections. Sigh.
+			httpclnt := &http.Client{}
 			busyboximg, err := cwclient.Pull(wwctx,
-				"docker.io/library/busybox:latest", containerd.WithPullUnpack)
+				"docker.io/library/busybox:latest",
+				containerd.WithPullUnpack,
+				containerd.WithResolver(docker.NewResolver(docker.ResolverOptions{
+					Client: httpclnt,
+				})))
 			Expect(err).NotTo(HaveOccurred())
+			defer httpclnt.CloseIdleConnections()
 
+			By("creating a new container/task and starting it")
 			// Run a test container by creating container+task, in Docker's moby
 			// namespace.
 			morbidmoby, err := cwclient.NewContainer(wwctx,
@@ -262,19 +303,23 @@ var _ = Describe("containerd engineclient", func() {
 			// We should never see any event for Docker-originating containers.
 			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
 
+			By("not seeing the newly started container/task in moby namespace")
 			// We must not see this started container, as it is in the blocked
 			// "moby" namespace.
 			cntrs, err := cw.List(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(cntrs).NotTo(ContainElement(HaveValue(HaveID(mobyns + "/" + momo))))
 
+			By("deleting container/task")
 			// Get rid of the task.
 			_, err = morbidmobystask.Delete(wwctx, containerd.WithProcessKill)
 			Expect(err).NotTo(HaveOccurred())
 
+			By("receiving container/task exit event")
 			// We should see or have seen the corresponding task exit event...
 			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
 
+			By("closing down the event stream")
 			// Shut down the engine event stream and make sure that it closes the
 			// error stream properly to signal its end...
 			cancel()
