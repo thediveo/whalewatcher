@@ -1,5 +1,9 @@
 name: build and test
 on:
+  pull_requests:
+    branches:
+    - master
+    - develop
   push:
     branches:
     - master
