@@ -25,13 +25,18 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/noleak"
 )
 
 var _ = Describe("Moby watcher engine end-to-end test", func() {
 
-	AfterEach(func() {
-		Eventually(Goroutines).ShouldNot(HaveLeaked())
+	BeforeEach(func() {
+		goodfds := Filedescriptors()
+		DeferCleanup(func() {
+			Eventually(Goroutines).ShouldNot(HaveLeaked())
+			Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
+		})
 	})
 
 	It("doesn't accept invalid engine API paths", func() {

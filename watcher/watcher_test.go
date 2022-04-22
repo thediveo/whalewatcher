@@ -25,6 +25,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/noleak"
 )
 
@@ -56,8 +57,12 @@ var (
 
 var _ = Describe("watcher (of whales, not: Wales)", func() {
 
-	AfterEach(func() {
-		Eventually(Goroutines).ShouldNot(HaveLeaked())
+	BeforeEach(func() {
+		goodfds := Filedescriptors()
+		DeferCleanup(func() {
+			Eventually(Goroutines).ShouldNot(HaveLeaked())
+			Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
+		})
 	})
 
 	var mm *mockingmoby.MockingMoby
