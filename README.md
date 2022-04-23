@@ -31,8 +31,8 @@ module reduces system load especially when state is requested in bursts, as it
 offers a load-optimized kind of "cache". Yet this cache is always closely
 synchronized to the container engine state.
 
-> 🛈 If your application requires immediate action upon container lifecycle
-> events then our `whalewatcher` **isn't the right module** for it: our module
+> ℹ️ If your application requires immediate action upon container lifecycle
+> events then our `whalewatcher` **isn't the right module** for it: this module
 > is designed for those use cases where the application needing information
 > about containers is completely decoupled from container lifecycle events.
 
@@ -120,12 +120,21 @@ func main() {
 
 ## Hacking It
 
-This project comes with comprehensive unit tests, including (limited) mocking of
-Docker clients to the small extend required for whale watching.
+This project comes with comprehensive unit tests, including (albeit limited)
+mocking of Docker clients to the small extend required for whale watching. The
+tests also cover leak checks:
 
-> **Note:** do **not run tests** for multiple packages **in parallel**. `make
-test` ensures that, but in case you run `go test` yourself, please don't forget
-`-p 1` when testing multiple packages in one, _erm_, go.
+* goroutine leak checking courtesy of Gomega's
+  [`gleak`](https://onsi.github.io/gomega/#codegleakcode-finding-leaked-goroutines)
+  package.
+
+* file descriptor leak checking courtesy of the
+  [@thediveo/fdooze](https://github.com/thediveo/fdooze) module.
+
+> **Note:** do **not run parallel tests** for multiple packages. `make test`
+ensures to run all package tests always sequentially, but in case you run `go
+test` yourself, please don't forget `-p 1` when testing multiple packages in
+one, _erm_, go.
 
 ## Copyright and License
 
