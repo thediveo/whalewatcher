@@ -8,10 +8,10 @@ require (
 	github.com/containerd/typeurl v1.0.2
 	github.com/docker/docker v20.10.14+incompatible
 	github.com/onsi/ginkgo/v2 v2.1.3
-	github.com/onsi/gomega v1.19.0
+	github.com/onsi/gomega v1.19.1-0.20220419145416-8dab36e62ea1
 	github.com/opencontainers/image-spec v1.0.2
 	github.com/ory/dockertest/v3 v3.8.1
-	github.com/thediveo/noleak v0.3.0
+	github.com/thediveo/fdooze v0.1.1
 )
 
 require (
@@ -52,9 +52,9 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/net v0.0.0-20220403103023-749bd193bc2b // indirect
+	golang.org/x/net v0.0.0-20220420153159-1850ba15e1be // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220403205710-6acee93ad0eb // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20220401170504-314d38edb7de // indirect
 	google.golang.org/grpc v1.45.0 // indirect

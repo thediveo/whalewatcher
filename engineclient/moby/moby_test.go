@@ -22,8 +22,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
-	. "github.com/thediveo/noleak"
 	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
