@@ -23,7 +23,7 @@ import (
 	events "github.com/containerd/containerd/api/events"
 	tasksv1 "github.com/containerd/containerd/api/services/tasks/v1"
 	tasktypes "github.com/containerd/containerd/api/types/task"
-	cntrdns "github.com/containerd/containerd/namespaces"
+	containerdns "github.com/containerd/containerd/namespaces"
 	"github.com/containerd/typeurl"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
@@ -152,7 +152,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 		}
 		// Prepare namespace'd context for further API calls and then get the
 		// container details.
-		nsctx := cntrdns.WithNamespace(ctx, namespace)
+		nsctx := containerdns.WithNamespace(ctx, namespace)
 		// As labels are considered to be a container's configuration as opposed
 		// to a container's state information, we first have to list all
 		// containers and then index their labels.
@@ -184,7 +184,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 // ID of a container.
 func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatcher.Container, error) {
 	namespace, id := decodeDisplayID(nameorid)
-	nsctx := cntrdns.WithNamespace(ctx, namespace)
+	nsctx := containerdns.WithNamespace(ctx, namespace)
 	cntr, err := cw.client.ContainerService().Get(nsctx, id)
 	if err != nil {
 		return nil, err
