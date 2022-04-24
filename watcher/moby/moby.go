@@ -17,12 +17,12 @@ package moby
 import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/docker/docker/client"
-	mobyengine "github.com/thediveo/whalewatcher/engineclient/moby"
+	engineclient "github.com/thediveo/whalewatcher/engineclient/moby"
 	"github.com/thediveo/whalewatcher/watcher"
 )
 
 // Type ID of the container engine handled by this watcher.
-const Type = mobyengine.Type
+const Type = engineclient.Type
 
 // New returns a Watcher for keeping track of the currently alive containers,
 // optionally with the composer projects they're associated with.
@@ -36,7 +36,7 @@ const Type = mobyengine.Type
 // is, any failed operation will never be retried.
 //
 // Finally, Docker engine client-specific options can be passed in.
-func New(dockersock string, buggeroff backoff.BackOff, opts ...mobyengine.NewOption) (watcher.Watcher, error) {
+func New(dockersock string, buggeroff backoff.BackOff, opts ...engineclient.NewOption) (watcher.Watcher, error) {
 	clientopts := []client.Opt{
 		client.FromEnv,
 		client.WithAPIVersionNegotiation(),
@@ -48,5 +48,5 @@ func New(dockersock string, buggeroff backoff.BackOff, opts ...mobyengine.NewOpt
 	if err != nil {
 		return nil, err
 	}
-	return watcher.New(mobyengine.NewMobyWatcher(moby, opts...), buggeroff), nil
+	return watcher.New(engineclient.NewMobyWatcher(moby, opts...), buggeroff), nil
 }
