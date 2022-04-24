@@ -3,6 +3,8 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/thediveo/whalewatcher)](https://pkg.go.dev/github.com/thediveo/whalewatcher)
 [![GitHub](https://img.shields.io/github/license/thediveo/whalewatcher)](https://img.shields.io/github/license/thediveo/whalewatcher)
 ![build and test](https://github.com/thediveo/whalewatcher/workflows/build%20and%20test/badge.svg?branch=master)
+![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)
+![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
 
 🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
@@ -10,9 +12,11 @@ the tedious task of constantly monitoring "alive" container workloads: no need
 to watching boring event streams or alternatively polling to have the accurate
 picture.
 
-Using `whalewatcher` an application can simply ask for the current state of
-affairs at any time and without causing load: which containers are alive right
-now? And what composer projects are in use?
+Instead, using `whalewatcher` an application simply asks for the current state
+of affairs at any time when it needs to do so. The workload state then is
+directly answered from `whalewatcher`'s trackers without causing container
+engine load: which containers are alive right now? And what composer projects
+are in use?
 
 ## Stayin' Alive
 
