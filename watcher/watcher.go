@@ -187,7 +187,14 @@ func (ww *watcher) Watch(ctx context.Context) error {
 		// cannot "leak" a child cancel, whatever govet's "opinion" is.
 		eventsctx, cancelevents := context.WithCancel(ctx)
 		evs, errs := ww.engine.LifecycleEvents(eventsctx)
-		listerr := make(chan error)
+		// There is a chance -- especially in especially perfidious unit tests
+		// ;) -- that the watch context is already cancelled while the list
+		// gathering is still in process. In order to avoid blocking the listing
+		// goroutine on trying to send back its error (due to the watch context
+		// being cancelled) when we have already left this Watch receiver (or
+		// are on our way out), we buffer the list error channel. The list error
+		// then will be simply GC'ed at some later time.
+		listerr := make(chan error, 1)
 		go func() {
 			if err := ww.list(ctx); err != nil {
 				// list failed for some severe reason, so bail out and tell the
