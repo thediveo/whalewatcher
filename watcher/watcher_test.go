@@ -73,10 +73,10 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Expect(mm).NotTo(BeNil())
 		ww = New(moby.NewMobyWatcher(mm), backoff.NewConstantBackOff(500*time.Millisecond)).(*watcher)
 		Expect(ww).NotTo(BeNil())
-	})
 
-	AfterEach(func() {
-		ww.Close()
+		DeferCleanup(func() {
+			ww.Close()
+		})
 	})
 
 	It("returns the engine ID and version", func() {
