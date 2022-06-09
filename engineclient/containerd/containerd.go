@@ -22,7 +22,9 @@ import (
 	"github.com/containerd/containerd"
 	events "github.com/containerd/containerd/api/events"
 	tasksv1 "github.com/containerd/containerd/api/services/tasks/v1"
+	"github.com/containerd/containerd/api/types/task"
 	tasktypes "github.com/containerd/containerd/api/types/task"
+	"github.com/containerd/containerd/containers"
 	containerdns "github.com/containerd/containerd/namespaces"
 	"github.com/containerd/typeurl"
 	"github.com/thediveo/whalewatcher"
@@ -59,8 +61,9 @@ const nsdelemiter = "/"
 // ContainerdWatcher is a containerd EngineClient for interfacing the generic
 // whale watching with containerd daemons.
 type ContainerdWatcher struct {
-	pid    int                // optional engine PID when known.
-	client *containerd.Client // containerd API client.
+	pid    int                         // optional engine PID when known.
+	client *containerd.Client          // containerd API client.
+	packer engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
 }
 
 // NewContainerdWatcher returns a new ontainerdWatcher using the specified
@@ -88,6 +91,25 @@ func WithPID(pid int) NewOption {
 	return func(cw *ContainerdWatcher) {
 		cw.pid = pid
 	}
+}
+
+// WithRucksackPacker sets the Rucksack packer that adds application-specific
+// container information based on the inspected container data. The specified
+// Rucksack packer gets passed the inspection data in form of a
+// InspectionDetails.
+func WithRucksackPacker(packer engineclient.RucksackPacker) NewOption {
+	return func(cw *ContainerdWatcher) {
+		cw.packer = packer
+	}
+}
+
+// InspectionDetails combines the container inspection details with its task
+// process details. InspectionDetails gets passed to Rucksack packers where
+// registered in order to pick additional inspection information beyond the
+// generic staple data maintained by the whalewatcher module.
+type InspectionDetails struct {
+	*containers.Container
+	*task.Process
 }
 
 // ID returns the (more or less) unique engine identifier; the exact format is
@@ -196,6 +218,12 @@ func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*wha
 	c := cw.newContainer(namespace, cntr.Labels, task.Process)
 	if c == nil {
 		return nil, engineclient.NewProcesslessContainerError(nameorid, "containerd")
+	}
+	if cw.packer != nil {
+		cw.packer.Pack(c, InspectionDetails{
+			Container: &cntr,
+			Process:   task.Process,
+		})
 	}
 	return c, nil
 }

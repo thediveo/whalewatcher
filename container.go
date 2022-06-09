@@ -31,12 +31,13 @@ import (
 // container process(es) or are just yet created and thus still without any
 // container process(es).
 type Container struct {
-	ID      string            // unique identifier of this container.
-	Name    string            // user-friendly name of this container.
-	Labels  map[string]string // labels assigned to this container.
-	PID     int               // PID of container's initial ("ealdorman") process.
-	Project string            // optional composer project name, or zero.
-	Paused  bool              // true if container is paused, false if running.
+	ID       string            // unique identifier of this container.
+	Name     string            // user-friendly name of this container.
+	Labels   map[string]string // labels assigned to this container.
+	PID      int               // PID of container's initial ("ealdorman") process.
+	Project  string            // optional composer project name, or zero.
+	Paused   bool              // true if container is paused, false if running.
+	Rucksack interface{}       // optional additional application-specific container information.
 }
 
 // ProjectName returns the name of the composer project for this container, if

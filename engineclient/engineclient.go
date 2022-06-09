@@ -56,6 +56,15 @@ type EngineClient interface {
 	Close()
 }
 
+// RucksackPacker optionally adds additional information to the tracked
+// container information, as kind of a Rucksack. It gets passed container
+// engine-specific inspection information so as to be able to pick and pack
+// application-specific container information beyond the stock information
+// always maintained by the whalewatcher module.
+type RucksackPacker interface {
+	Pack(container *whalewatcher.Container, inspection interface{})
+}
+
 // ContainerEventType identifies and enumerates the (few) container lifecycle
 // events we're interested in, regardless of a particular container engine.
 type ContainerEventType byte

@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -33,6 +34,19 @@ import (
 	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/whalewatcher/test/matcher"
 )
+
+type packer struct{}
+
+func (p *packer) Pack(container *whalewatcher.Container, inspection interface{}) {
+	Expect(container).NotTo(BeNil())
+	Expect(inspection).NotTo(BeNil())
+	var details InspectionDetails
+	Expect(inspection).To(BeAssignableToTypeOf(details))
+	details = inspection.(InspectionDetails)
+	Expect(details.Container).NotTo(BeNil())
+	Expect(details.Process).NotTo(BeNil())
+	container.Rucksack = &details
+}
 
 var _ = Describe("containerd engineclient", func() {
 
@@ -196,12 +210,15 @@ var _ = Describe("containerd engineclient", func() {
 
 		By("getting details of the newly started container/task")
 		// ...and we should be able to query its details.
+		defer func() { cw.packer = nil }()
+		cw.packer = &packer{}
 		container, err := cw.Inspect(wwctx, testns+"/"+bibi)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(container).To(HaveValue(And(
 			HaveID(testns+"/"+bibi),
 			HaveName(testns+"/rappelfatz"),
 		)))
+		Expect(container.Rucksack).NotTo(BeNil())
 
 		By("pausing container/task")
 		// pause...

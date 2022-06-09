@@ -17,6 +17,8 @@ package moby
 import (
 	"context"
 
+	"github.com/docker/docker/api/types"
+	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
 
@@ -26,6 +28,17 @@ import (
 	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/whalewatcher/test/matcher"
 )
+
+type packer struct{}
+
+func (p *packer) Pack(container *whalewatcher.Container, inspection interface{}) {
+	Expect(container).NotTo(BeNil())
+	Expect(inspection).NotTo(BeNil())
+	var details types.ContainerJSON
+	Expect(inspection).To(BeAssignableToTypeOf(details))
+	details = inspection.(types.ContainerJSON)
+	container.Rucksack = &details
+}
 
 var (
 	furiousFuruncle = mockingmoby.MockedContainer{
@@ -101,9 +114,12 @@ var _ = Describe("moby engineclient", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		defer func() { ec.packer = nil }()
+		ec.packer = &packer{}
 		cntr, err := ec.Inspect(ctx, furiousFuruncle.ID)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cntr).To(HaveID(furiousFuruncle.ID))
+		Expect(cntr.Rucksack).NotTo(BeNil())
 
 		mm.AddContainer(deadDummy)
 		_, err = ec.Inspect(ctx, deadDummy.ID)

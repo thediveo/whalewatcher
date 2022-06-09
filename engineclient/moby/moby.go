@@ -50,11 +50,12 @@ type MobyAPIClient interface {
 // MobyWatcher is a Docker-engine EngineClient for interfacing the generic whale
 // watching with Docker daemons.
 type MobyWatcher struct {
-	pid  int           // optional engine PID when known.
-	moby MobyAPIClient // (minimal) moby engine API client.
+	pid    int                         // optional engine PID when known.
+	moby   MobyAPIClient               // (minimal) moby engine API client.
+	packer engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
 }
 
-// Make sure that the EngineClient interface is fully implemented
+// Make sure that the EngineClient interface is fully implemented.
 var _ (engineclient.EngineClient) = (*MobyWatcher)(nil)
 
 // NewMobyWatcher returns a new MobyWatcher using the specified Docker engine
@@ -78,6 +79,16 @@ type NewOption func(*MobyWatcher)
 func WithPID(pid int) NewOption {
 	return func(mw *MobyWatcher) {
 		mw.pid = pid
+	}
+}
+
+// WithRucksackPacker sets the Rucksack packer that adds application-specific
+// container information based on the inspected container data. The specified
+// Rucksack packer gets passed the inspection data in form of a Docker client
+// types.ContainerJSON.
+func WithRucksackPacker(packer engineclient.RucksackPacker) NewOption {
+	return func(mw *MobyWatcher) {
+		mw.packer = packer
 	}
 }
 
@@ -166,6 +177,9 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 		// Just the presence of the "magic" label is sufficient; the label's
 		// value doesn't matter.
 		cntr.Labels[PrivilegedLabel] = ""
+	}
+	if mw.packer != nil {
+		mw.packer.Pack(cntr, details)
 	}
 	return cntr, nil
 }
