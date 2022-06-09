@@ -10,7 +10,8 @@
 🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
 the tedious task of constantly monitoring "alive" container workloads: no need
 to watching boring event streams or alternatively polling to have the accurate
-picture.
+picture. Never worry about how to properly synchronize to a changing workload at
+startup, this is all taken care of for you.
 
 Instead, using `whalewatcher` an application simply asks for the current state
 of affairs at any time when it needs to do so. The workload state then is
@@ -35,10 +36,10 @@ module reduces system load especially when state is requested in bursts, as it
 offers a load-optimized kind of "cache". Yet this cache is always closely
 synchronized to the container engine state.
 
-> ℹ️ If your application requires immediate action upon container lifecycle
-> events then our `whalewatcher` **isn't the right module** for it: this module
-> is designed for those use cases where the application needing information
-> about containers is completely decoupled from container lifecycle events.
+> ℹ️ This module now optionally supports receiving container lifecycle events by
+> requesting a lifecycle event stream from a `watcher.Watcher`. Only the
+> lifecycle events are supported for when a container becomes alive or exists,
+> or it pauses or unpauses.
 
 ## Features
 

@@ -79,8 +79,9 @@ func (p *ComposerProject) Container(nameorid string) *Container {
 }
 
 // SetPaused changes a container's Paused state, obeying the design restriction
-// that Container objects are immutable.
-func (p *ComposerProject) SetPaused(nameorid string, paused bool) {
+// that Container objects are immutable. It returns the container in its new
+// state.
+func (p *ComposerProject) SetPaused(nameorid string, paused bool) *Container {
 	p.m.RLock()
 	defer p.m.RUnlock()
 
@@ -93,11 +94,13 @@ func (p *ComposerProject) SetPaused(nameorid string, paused bool) {
 				c := *cntr
 				c.Paused = paused
 				p.containers[idx] = &c
+				return &c
 			}
-			return
+			return cntr
 		}
 	}
 	// Silently ignore a non-existing name/ID.
+	return nil
 }
 
 // String returns a textual representation of a composer project with its
@@ -118,24 +121,25 @@ func (p *ComposerProject) String() string {
 }
 
 // add a new container to a composer project. Silently ignore any attempt to add
-// an already existing container.
-func (p *ComposerProject) add(c *Container) {
+// an already existing container. Returns true if the container was newly added,
+// false if the container already exists.
+func (p *ComposerProject) add(c *Container) bool {
 	p.m.Lock()
 	defer p.m.Unlock()
 
 	for _, cntr := range p.containers {
 		if cntr.Name == c.Name {
-			return
+			return false
 		}
 	}
 	p.containers = append(p.containers, c)
+	return true
 }
 
 // remove the container identified by either name or ID from this composer
-// project.
-//
-// It's not an error trying to remove a non-existing container name/ID.
-func (p *ComposerProject) remove(nameid string) {
+// project. It returns the information about the removed container, if any, or
+// nil.
+func (p *ComposerProject) remove(nameid string) *Container {
 	p.m.Lock()
 	defer p.m.Unlock()
 
@@ -150,7 +154,8 @@ func (p *ComposerProject) remove(nameid string) {
 			last := len(p.containers) - 1
 			p.containers[idx], p.containers[last] = p.containers[last], nil
 			p.containers = p.containers[:last]
-			return
+			return cntr
 		}
 	}
+	return nil
 }

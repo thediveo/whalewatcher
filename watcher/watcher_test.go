@@ -73,10 +73,10 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		Expect(mm).NotTo(BeNil())
 		ww = New(moby.NewMobyWatcher(mm), backoff.NewConstantBackOff(500*time.Millisecond)).(*watcher)
 		Expect(ww).NotTo(BeNil())
-	})
 
-	AfterEach(func() {
-		ww.Close()
+		DeferCleanup(func() {
+			ww.Close()
+		})
 	})
 
 	It("returns the engine ID and version", func() {
@@ -92,9 +92,17 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 	It("adds newborn container to our portfolio", func() {
 		mm.AddContainer(mockingMoby)
 
+		evs := ww.Events()
 		ww.born(context.Background(), mockingMoby.ID)
+		Eventually(evs).Should(Receive(And(
+			HaveField("Type", engineclient.ContainerStarted),
+			HaveField("Container", Not(BeNil())),
+		)))
 		Expect(ww.list(context.Background())).To(Succeed())
+		Consistently(evs).WithTimeout(2 * time.Second).WithPolling(250 * time.Millisecond).ShouldNot(Receive())
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
+		ww.Close()
+		Eventually(evs).Should(BeClosed())
 	})
 
 	It("adds newborn project container to our portfolio", func() {
@@ -108,10 +116,15 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 	It("removes dead container from our portfolio", func() {
 		mm.AddContainer(mockingMoby)
 
+		evs := ww.Events()
 		ww.born(context.Background(), mockingMoby.ID)
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 
 		ww.demised(mockingMoby.ID, "")
+		Eventually(evs).Should(Receive(And(
+			HaveField("Type", engineclient.ContainerExited),
+			HaveField("Container", Not(BeNil())),
+		)))
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(BeEmpty())
 	})
 
@@ -139,6 +152,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		// Now check that containers dying while the list is in progress don't
 		// get added to the portfolio, avoiding the portfolio getting filled
 		// with zombies.
+		evs := ww.Events()
 		Expect(ww.list(mockingmoby.WithHook(
 			context.Background(),
 			mockingmoby.ContainerListPost,
@@ -147,6 +161,10 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 				ww.demised(furiousFuruncle.ID, "")
 				return nil
 			}))).To(Succeed())
+		Eventually(evs).Should(Receive(And(
+			HaveField("Type", engineclient.ContainerExited),
+			HaveField("Container", Not(BeNil())),
+		)))
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 	})
 
@@ -158,6 +176,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		// (un)pause events during a list should be queued and properly handled
 		// later.
+		evs := ww.Events()
 		Expect(ww.list(mockingmoby.WithHook(
 			context.Background(),
 			mockingmoby.ContainerListPost,
@@ -166,11 +185,19 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 				ww.paused(furiousFuruncle.ID, "", true)
 				return nil
 			}))).To(Succeed())
+		Eventually(evs).Should(Receive(And(
+			HaveField("Type", engineclient.ContainerPaused),
+			HaveField("Container", Not(BeNil())),
+		)))
 		Expect(ww.Portfolio().Project("").Container(furiousFuruncle.ID).Paused).To(BeTrue())
 
 		// a later unpause should be propagate "immediately".
 		mm.PauseContainer(furiousFuruncle.ID)
 		ww.paused(furiousFuruncle.ID, "", false)
+		Eventually(evs).Should(Receive(And(
+			HaveField("Type", engineclient.ContainerUnpaused),
+			HaveField("Container", Not(BeNil())),
+		)))
 		Expect(ww.Portfolio().Project("").Container(furiousFuruncle.ID).Paused).To(BeFalse())
 	})
 
@@ -243,9 +270,9 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 			close(done)
 		}()
 
-		// Pass ww.Ready, not its result: wait for the initial synchronization
-		// to be done and the initial discovery results having just come in.
-		Eventually(ww.Ready).Should(BeClosed())
+		// wait for the initial synchronization to be done and the initial
+		// discovery results having just come in.
+		Eventually(ww.Ready()).Should(BeClosed())
 
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 
