@@ -46,6 +46,11 @@ type Watcher interface {
 	// cancelled. It will automatically reconnect in case of loss of connection
 	// to the connected container engine.
 	Watch(ctx context.Context) error
+	// Events returns a new (buffered) event channel transmitting container
+	// lifecycle events. It will automatically be closed when the watcher is closed.
+	// Events will only be transmitted after starting calling the (blocking) Watch
+	// method.
+	Events() <-chan ContainerEvent
 	// ID returns the (more or less) unique engine identifier; the exact format
 	// is engine-specific.
 	ID(ctx context.Context) string
@@ -62,6 +67,13 @@ type Watcher interface {
 	Client() interface{}
 	// Close cleans up and release any engine client resources, if necessary.
 	Close()
+}
+
+// ContainerEvent informs about a particular container becoming alive or
+// terminated, or paused and unpaused.
+type ContainerEvent struct {
+	Type      engineclient.ContainerEventType
+	Container *whalewatcher.Container
 }
 
 // watcher watches a Docker daemon for containers to become alive and later
@@ -84,6 +96,9 @@ type watcher struct {
 
 	once  sync.Once     // "protects" the ready channel
 	ready chan struct{} // ready channel signal
+
+	eventchmux sync.Mutex
+	eventchs   []chan ContainerEvent
 }
 
 // New returns a new Watcher tracking alive containers as they come and go,
@@ -102,6 +117,18 @@ func New(engine engineclient.EngineClient, buggeroff backoff.BackOff) Watcher {
 		writeportfolio: pf,
 		ready:          make(chan struct{}),
 	}
+}
+
+// Events returns a new (buffered) event channel transmitting container
+// lifecycle events. It will automatically be closed when the watcher is closed.
+// Events will only be transmitted after starting calling the (blocking) Watch
+// method.
+func (ww *watcher) Events() <-chan ContainerEvent {
+	ww.eventchmux.Lock()
+	defer ww.eventchmux.Unlock()
+	evs := make(chan ContainerEvent, 10)
+	ww.eventchs = append(ww.eventchs, evs)
+	return evs
 }
 
 // Portfolio returns the current portfolio for reading. During resynchronization
@@ -149,9 +176,15 @@ func (ww *watcher) PID() int { return ww.engine.PID() }
 func (ww *watcher) Client() interface{} { return ww.engine.Client() }
 
 // Close cleans up and release any underlying engine client resources, if
-// necessary.
+// necessary. Doesn't care when called multiple times.
 func (ww *watcher) Close() {
+	ww.eventchmux.Lock()
+	defer ww.eventchmux.Unlock()
 	ww.engine.Close()
+	for _, evs := range ww.eventchs {
+		close(evs)
+	}
+	ww.eventchs = nil
 }
 
 // Watch synchronizes the Portfolio to the connected container engine's state
@@ -208,8 +241,9 @@ func (ww *watcher) Watch(ctx context.Context) error {
 			ww.readportfolio = ww.writeportfolio
 			ww.pfmux.Unlock()
 		}()
-		// Permanently receive and process container lifecycle-related
-		// events...
+		// Permanently receive and process container lifecycle-related events,
+		// while at first there is a concurrent list operation also taking
+		// place...
 		for {
 			select {
 			case err := <-errs:
@@ -247,6 +281,21 @@ func (ww *watcher) Watch(ctx context.Context) error {
 	}, ww.buggeroff)
 }
 
+// notify sends events to all registered lifecycle event channels.
+func (ww *watcher) notify(evt engineclient.ContainerEventType, cntr *whalewatcher.Container) {
+	if cntr == nil {
+		return
+	}
+	ww.eventchmux.Lock()
+	defer ww.eventchmux.Unlock()
+	for _, evs := range ww.eventchs {
+		evs <- ContainerEvent{
+			Type:      evt,
+			Container: cntr,
+		}
+	}
+}
+
 // born adds a single container (identified by its unique ID) to our set of
 // known live and kicking containers. As we want to store some container details
 // (such as container's initial process PID, project, ...).
@@ -263,7 +312,9 @@ func (ww *watcher) born(ctx context.Context, id string) {
 		ww.pfmux.RLock()
 		pf := ww.writeportfolio
 		ww.pfmux.RUnlock()
-		pf.Add(cntr)
+		if pf.Add(cntr) {
+			ww.notify(engineclient.ContainerStarted, cntr)
+		}
 	}
 }
 
@@ -305,7 +356,8 @@ func (ww *watcher) demised(id string, projectname string) {
 		}
 		projectname = container.Project
 	}
-	pf.Remove(id, projectname)
+	cntr := pf.Remove(id, projectname)
+	ww.notify(engineclient.ContainerExited, cntr)
 }
 
 // paused either updates a container's paused state or schedules for a later
@@ -344,7 +396,12 @@ func (ww *watcher) paused(id string, projectname string, paused bool) {
 		projectname = container.Project
 	}
 	if proj := pf.Project(projectname); proj != nil {
-		proj.SetPaused(id, paused)
+		cntr := proj.SetPaused(id, paused)
+		if paused {
+			ww.notify(engineclient.ContainerPaused, cntr)
+		} else {
+			ww.notify(engineclient.ContainerUnpaused, cntr)
+		}
 	}
 }
 
@@ -397,10 +454,12 @@ nextpet:
 			}
 		}
 		// Otherwise, add the container we've found in the list to our
-		// portfolio; this is "quick" operation without any trips to the
+		// portfolio; this is a "quick" operation without any trips to the
 		// container engine (we already did the "slow" and time-consuming bits
-		// before, such as inspecting the details).
-		pf.Add(alive)
+		// before, such as inspecting the vontainer details).
+		if pf.Add(alive) {
+			ww.notify(engineclient.ContainerStarted, alive)
+		}
 	}
 	// Play back any pending pause state changes that occurred while the listing
 	// was in progress; if any such pause state changes refer to deceased IDs,
@@ -413,7 +472,12 @@ nextpet:
 	for _, pause := range ww.pauses {
 		if container := pf.Container(pause.ID); container != nil {
 			if project := pf.Project(container.Project); project != nil {
-				project.SetPaused(pause.ID, pause.Paused)
+				cntr := project.SetPaused(pause.ID, pause.Paused)
+				if pause.Paused {
+					ww.notify(engineclient.ContainerPaused, cntr)
+				} else {
+					ww.notify(engineclient.ContainerUnpaused, cntr)
+				}
 			}
 		}
 	}

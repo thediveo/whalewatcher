@@ -84,8 +84,9 @@ func (pf *Portfolio) ContainerTotal() (total int) {
 }
 
 // Add a container to the portfolio, creating also its composer project if that
-// is not yet known.
-func (pf *Portfolio) Add(cntr *Container) {
+// is not yet known. Returns true if the container was newly added, false if it
+// already exists.
+func (pf *Portfolio) Add(cntr *Container) bool {
 	pf.m.Lock()
 	defer pf.m.Unlock()
 
@@ -97,25 +98,27 @@ func (pf *Portfolio) Add(cntr *Container) {
 		proj = newComposerProject(projname)
 		pf.projects[projname] = proj
 	}
-	// Let the project deal with the gory details of adding versus updating.
-	proj.add(cntr)
+	// Let the project deal with the gory details of adding or not.
+	return proj.add(cntr)
 }
 
 // Remove a container identified by its ID or name as well as its composer
 // project name from the portfolio, removing its composer project if it was the
 // only container left in the project.
 //
-// It's fine (no error) trying to to Remove a non-existing container.
-func (pf *Portfolio) Remove(nameorid string, project string) {
+// The information about the removed container is returned, otherwise if no such
+// container exists, nil is returned instead.
+func (pf *Portfolio) Remove(nameorid string, project string) (cntr *Container) {
 	pf.m.Lock()
 	defer pf.m.Unlock()
 
 	if proj, ok := pf.projects[project]; ok {
-		proj.remove(nameorid)
+		cntr = proj.remove(nameorid)
 		if project != "" && len(proj.Containers()) == 0 {
 			// The (non-zero) project has become empty, so we remove this
 			// project from the portfolio.
 			delete(pf.projects, project)
 		}
 	}
+	return
 }

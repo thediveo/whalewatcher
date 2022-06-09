@@ -65,16 +65,19 @@ type RucksackPacker interface {
 	Pack(container *whalewatcher.Container, inspection interface{})
 }
 
-// ContainerEventType identifies and enumerates the (few) container lifecycle
-// events we're interested in, regardless of a particular container engine.
+// ContainerEventType identifies and enumerates the container lifecycle events
+// of "alive" containers, including their demise. Please do not confuse this
+// lifecycle for alive containers with the usualy much more comprehensive
+// container lifecycles that include creating a container long before it might
+// become alive: such stages are of no interest to us here; for instance,
+// there's no container creation event, "only" the container start event.
 type ContainerEventType byte
 
-// Container lifecycle events, covering only "alive" containers.
 const (
-	ContainerStarted ContainerEventType = iota
-	ContainerExited
-	ContainerPaused
-	ContainerUnpaused
+	ContainerStarted  ContainerEventType = iota // container has been started
+	ContainerExited                             // container has terminated (exited)
+	ContainerPaused                             // container has been paused
+	ContainerUnpaused                           // container has been unpaused
 )
 
 // ProjectUnknown signals that the project name for a container event is
