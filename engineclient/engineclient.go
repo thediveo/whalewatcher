@@ -56,6 +56,19 @@ type EngineClient interface {
 	Close()
 }
 
+// Allow an engine client to do some final pre-flight operations right
+// before starting a watch, where the preflight ops might require
+// talking to a particular engine and thus should be controlled by a
+// context.
+//
+// The raison d'être at this time is to avoid a race condition in the Docker
+// client API version negotiation that otherwise trips our race-enabled
+// tests and thus makes us blind for race violations in our own code base.
+type Preflighter interface {
+	// Run "preflight" tasks just right before starting a Watch.
+	Preflight(ctx context.Context)
+}
+
 // RucksackPacker optionally adds additional information to the tracked
 // container information, as kind of a Rucksack. It gets passed container
 // engine-specific inspection information so as to be able to pick and pack

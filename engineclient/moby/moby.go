@@ -56,8 +56,9 @@ type MobyWatcher struct {
 	packer engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
 }
 
-// Make sure that the EngineClient interface is fully implemented.
+// Make sure that the EngineClient and Preflighter interfaces are fully implemented.
 var _ (engineclient.EngineClient) = (*MobyWatcher)(nil)
+var _ (engineclient.Preflighter) = (*MobyWatcher)(nil)
 
 // NewMobyWatcher returns a new MobyWatcher using the specified Docker engine
 // client; typically, you would want to use this lower-level constructor only in
@@ -129,12 +130,17 @@ func (mw *MobyWatcher) Close() {
 	mw.moby.Close()
 }
 
+// Allow an engine client to do some final pre-flight operations that might
+// require talking to a particular engine and thus should be controlled by a
+// context.
+func (mw *MobyWatcher) Preflight(ctx context.Context) {
+	// https://github.com/moby/moby/pull/42379
+	mw.moby.NegotiateAPIVersion(ctx)
+}
+
 // List all the currently alive and kicking containers, but do not list any
 // containers without any processes.
 func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, error) {
-	// https://github.com/moby/moby/pull/42379
-	mw.moby.NegotiateAPIVersion(ctx)
-
 	// Scan the currently available containers and take only the alive into
 	// further consideration. This is a potentially lengthy operation, as we
 	// need to inspect each potential candidate individually due to the way the
@@ -192,9 +198,6 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 // in the lifecycle of containers getting born (=alive, as opposed to, say,
 // "conceived") and die.
 func (mw *MobyWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient.ContainerEvent, <-chan error) {
-	// https://github.com/moby/moby/pull/42379
-	mw.moby.NegotiateAPIVersion(ctx)
-
 	cntreventstream := make(chan engineclient.ContainerEvent)
 	cntrerrstream := make(chan error, 1)
 
