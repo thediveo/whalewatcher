@@ -82,8 +82,8 @@ func (p *ComposerProject) Container(nameorid string) *Container {
 // that Container objects are immutable. It returns the container in its new
 // state.
 func (p *ComposerProject) SetPaused(nameorid string, paused bool) *Container {
-	p.m.RLock()
-	defer p.m.RUnlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 
 	for idx, cntr := range p.containers {
 		if cntr.Name == nameorid || cntr.ID == nameorid {
