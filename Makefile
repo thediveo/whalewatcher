@@ -1,4 +1,4 @@
-.PHONY: help clean godoc reportcard test
+.PHONY: help clean godoc pkgsite reportcard test
 
 help: ## list available targets
 	@# Shamelessly stolen from Gomega's Makefile
@@ -7,7 +7,11 @@ help: ## list available targets
 clean: ## cleans up build and testing artefacts
 	rm -f coverage.html coverage.out coverage.txt
 
-godoc: ## serves godoc on port 6060
+pkgsite: ## serves Go documentation on port 6060
+	@PATH=$(PATH):$(shell go env GOPATH)/bin; pkgsite -http=:6060 .
+	echo "navigate to: http://localhost:6060/github.com/thediveo/whalewatcher"
+
+godoc: ## deprecated: serves godoc on port 6060 -- use "make pkgsite" instead.
 	@PATH=$(PATH):$(shell go env GOPATH)/bin; godoc -http=:6060
 
 report: ## run goreportcard on this module

@@ -1,14 +1,12 @@
 /*
-
 Package whalewatcher watches Docker and containerd containers as they come and
 go from the perspective of containers that are "alive", that is, only those
 containers with actual processes. In contrast, freshly created or "dead"
 containers without any processes are not tracked.
 
 Furthermore, this package understands how containers optionally are organized
-into composer projects (Docker composer, https://github.com/docker/compose).
-Please note that full nerdctl project-awareness currently is blocked by issue
-#241 (https://github.com/containerd/nerdctl/issues/241).
+into composer projects [Docker compose]. Please note that full nerdctl
+project-awareness currently is blocked by [nerdctl issue #241].
 
 As the focus of this module is on containers that are either in running or
 paused states, the envisioned use cases are tools that solely interact with
@@ -17,15 +15,17 @@ various elements of the proc filesystem).
 
 In order to cause only as low system load as possible this module monitors the
 container engine's container lifecycle-related events instead of stupid polling.
-However, if your application wants to immediately react on such events, then
-this package is not suitable. Instead, it decouples an application's access to
-the current state from tracking this container state.
+In particular, this module decouples an application's access to the current
+state from tracking this container state.
 
-Watcher
+Optionally, applications can subscribe to an events channel that passes on the
+lifecycle events whalewatcher receives.
 
-A Watcher watches the containers of a single container engine instance when
-running its Watch method in a separate go routine. Cancel its passed context to
-stop watching.
+# Watcher
+
+A [github.com/thediveo/whalewatcher/watcher.Watcher] watches the containers of a
+single container engine instance when running its Watch method in a separate go
+routine. Cancel its passed context to stop watching.
 
 Watchers return information about alive containers (and optionally their
 organization into projects) via a Portfolio. Please do not keep the Portfolio
@@ -37,47 +37,48 @@ Please refer to example/main.go as an example:
 	package main
 
 	import (
-		"context"
-		"fmt"
-		"sort"
+	    "context"
+	    "fmt"
+	    "sort"
 
-		"github.com/thediveo/whalewatcher/watcher/moby"
+	    "github.com/thediveo/whalewatcher/watcher/moby"
 	)
 
-	whalewatcher, err := moby.NewWatcher("unix:///var/run/docker.sock")
-	if err != nil {
-		panic(err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	fmt.Printf("watching engine ID: %s\n", whalewatcher.ID(ctx))
-
-	// run the watch in a separate go routine.
-	go whalewatcher.Watch(ctx)
-
-	// depending on application you don't need to wait for the first results to
-	// become ready; in this example we want to wait for results.
-	<-whalewatcher.Ready()
-
-	// get list of projects; we add the unnamed "" project which automatically
-	// contains all non-project (standalone) containers.
-	projectnames := append(whalewatcher.Portfolio().Names(), "")
-	sort.Strings(projectnames)
-	for _, projectname := range projectnames {
-		containers := whalewatcher.Portfolio().Project(projectname)
-		if containers == nil {
-			continue // doh ... gone!
+	func main() {
+		whalewatcher, err := moby.NewWatcher("unix:///var/run/docker.sock")
+		if err != nil {
+			panic(err)
 		}
-		fmt.Printf("project %q:\n", projectname)
-		for _, container := range containers.Containers() {
-			fmt.Printf("  container %q with PID %d\n", container.Name, container.PID)
+		ctx, cancel := context.WithCancel(context.Background())
+		fmt.Printf("watching engine ID: %s\n", whalewatcher.ID(ctx))
+
+		// run the watch in a separate go routine.
+		go whalewatcher.Watch(ctx)
+
+		// depending on application you don't need to wait for the first results to
+		// become ready; in this example we want to wait for results.
+		<-whalewatcher.Ready()
+
+		// get list of projects; we add the unnamed "" project which automatically
+		// contains all non-project (standalone) containers.
+		projectnames := append(whalewatcher.Portfolio().Names(), "")
+		sort.Strings(projectnames)
+		for _, projectname := range projectnames {
+			containers := whalewatcher.Portfolio().Project(projectname)
+			if containers == nil {
+				continue // doh ... gone!
+			}
+			fmt.Printf("project %q:\n", projectname)
+			for _, container := range containers.Containers() {
+				fmt.Printf("  container %q with PID %d\n", container.Name, container.PID)
+			}
+			fmt.Println()
 		}
-		fmt.Println()
+
+		// finally stop the watch
+		cancel()
+		whalewatcher.Close()
 	}
-
-	// finally stop the watch
-	cancel()
-	whalewatcher.Close()
-
 
 Note: if an application needs to watch both Docker and "pure" containerd
 containers, then it needs to create two watchers, one for the Docker engine and
@@ -85,20 +86,23 @@ another one for the containerd instance. The containerd watcher doesn't watch
 any Docker-managed containers (it cannot as Docker does not attach all
 information at the containerd level, especially not the container name).
 
-Portfolio
+# Portfolio
 
-The container information model starts with the Portfolio: the Portfolio knows
-about the currently available projects (ComposerProjects).
+The container information model starts with the [Portfolio]: a Portfolio consists
+of one or more projects in form of [ComposerProject], including the "unnamed"
+ComposerProject (that contains all non-project containers).
 
-ComposerProject
+# ComposerProject
 
-Composer projects are either explicitly named or the "zero" project that has no
-name (empty name). Projects then know the Containers associated to them.
+Composer projects are either explicitly named, or the "zero" project that has no
+name (that is, the empty name). A [ComposerProject] contains [Container] objects.
 
-Container
+# Container
 
 Containers store limited aspects about individual containers, such as their
 names, IDs, and PIDs.
 
+[nerdctl issue #241]: https://github.com/containerd/nerdctl/issues/241
+[Docker compose]: https://github.com/docker/compose
 */
 package whalewatcher

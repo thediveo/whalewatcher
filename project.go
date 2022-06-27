@@ -20,8 +20,9 @@ import (
 	"sync"
 )
 
-// ComposerProject represents a set of (running or paused, yet somehow alive)
-// containers belonging to a specific Docker Compose/Composer project.
+// ComposerProject represents a set of either running or paused (but always
+// "somehow" alive) containers belonging to a specific Docker Compose/Composer
+// project.
 //
 // As composer projects are artefacts above the first-level elements of the
 // Docker container engine we can only reconstruct them in an extremely limited
@@ -43,7 +44,8 @@ func newComposerProject(name string) *ComposerProject {
 	}
 }
 
-// Containers returns the current list of containers in this composer project.
+// Containers returns the current list of containers belonging to this composer
+// project.
 func (p *ComposerProject) Containers() []*Container {
 	p.m.RLock()
 	defer p.m.RUnlock()

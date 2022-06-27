@@ -25,11 +25,15 @@ import (
 // Please note that Container objects are considered immutable, so there's no
 // locking them for updating.
 //
-// We consider containers to be alive when they have an initial process (which
-// might be frozen) and thus a PID corresponding with that initial process. In
-// contrast, we don't care about containers which are either dead without any
-// container process(es) or are just yet created and thus still without any
-// container process(es).
+// Containers to considered to be alive from the perspective of the whalewatcher
+// module when they have an initial process (which might be frozen) and thus a
+// PID corresponding with that initial process. In contrast, we don't care about
+// containers which are either dead without any container process(es) or are
+// just yet created and thus still without any container process(es).
+//
+// The Rucksack supports storing additional application-specific container (and
+// container engine-specific) information; see also
+// [github.com/thediveo/whalewatcher/engineclient.RucksackPacker].
 type Container struct {
 	ID       string            // unique identifier of this container.
 	Name     string            // user-friendly name of this container.
