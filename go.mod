@@ -8,7 +8,7 @@ require (
 	github.com/containerd/typeurl v1.0.2
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/onsi/ginkgo/v2 v2.1.4
-	github.com/onsi/gomega v1.19.1-0.20220520165119-fd130e126467
+	github.com/onsi/gomega v1.19.1-0.20220613004312-293dd88bf6f8
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/thediveo/fdooze v0.1.3
@@ -63,4 +63,5 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

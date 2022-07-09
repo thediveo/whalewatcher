@@ -1,11 +1,11 @@
 # Whalewatcher
-
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/thediveo/whalewatcher)](https://pkg.go.dev/github.com/thediveo/whalewatcher)
 [![GitHub](https://img.shields.io/github/license/thediveo/whalewatcher)](https://img.shields.io/github/license/thediveo/whalewatcher)
 ![build and test](https://github.com/thediveo/whalewatcher/workflows/build%20and%20test/badge.svg?branch=master)
 ![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)
 ![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
+![Coverage](https://img.shields.io/badge/Coverage-91.0%25-brightgreen)
 
 🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
 the tedious task of constantly monitoring "alive" container workloads: no need
@@ -140,6 +140,49 @@ tests also cover leak checks:
 ensures to run all package tests always sequentially, but in case you run `go
 test` yourself, please don't forget `-p 1` when testing multiple packages in
 one, _erm_, go.
+
+## VSCode Tasks
+
+The included `go-plugger.code-workspace` defines the following tasks:
+
+- **View Go module documentation** task: installs `pkgsite`, if not done already
+  so, then starts `pkgsite` and opens VSCode's integrated ("simple") browser to
+  show the go-plugger/v2 documentation.
+
+- **Build workspace** task: builds all, including the shared library test
+  plugin.
+
+- **Run all tests with coverage** task: does what it says on the tin and runs
+  all tests with coverage.
+
+#### Aux Tasks
+
+- _pksite service_: auxilliary task to run `pkgsite` as a background service
+  using `scripts/pkgsite.sh`. The script leverages browser-sync and nodemon to
+  hot reload the Go module documentation on changes; many thanks to @mdaverde's
+  [_Build your Golang package docs
+  locally_](https://mdaverde.com/posts/golang-local-docs) for paving the way.
+  `scripts/pkgsite.sh` adds automatic installation of `pkgsite`, as well as the
+  `browser-sync` and `nodemon` npm packages for the local user.
+- _view pkgsite_: auxilliary task to open the VSCode-integrated "simple" browser
+  and pass it the local URL to open in order to show the module documentation
+  rendered by `pkgsite`. This requires a detour via a task input with ID
+  "_pkgsite_".
+
+## Make Targets
+
+- `make`: lists all targets.
+- `make coverage`: runs all tests with coverage and then **updates the coverage
+  badge in `README.md`**.
+- `make pkgsite`: installs [`x/pkgsite`](golang.org/x/pkgsite/cmd/pkgsite), as
+  well as the [`browser-sync`](https://www.npmjs.com/package/browser-sync) and
+  [`nodemon`](https://www.npmjs.com/package/nodemon) npm packages first, if not
+  already done so. Then runs the `pkgsite` and hot reloads it whenever the
+  documentation changes.
+- `make report`: installs
+  [`@gojp/goreportcard`](https://github.com/gojp/goreportcard) if not yet done
+  so and then runs it on the code base.
+- `make test`: runs **all** tests (including dynamic plugins).
 
 ## Copyright and License
 

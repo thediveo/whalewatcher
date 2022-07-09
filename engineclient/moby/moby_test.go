@@ -100,6 +100,23 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.ID(ctx)).To(BeZero())
 	})
 
+	It("sets a rucksack packer", func() {
+		mm = mockingmoby.NewMockingMoby()
+		p := packer{}
+		ec = NewMobyWatcher(mm, WithRucksackPacker(&p))
+		Expect(ec).NotTo(BeNil())
+		defer ec.Close()
+		Expect(ec.packer).To(BeIdenticalTo(&p))
+	})
+
+	It("returns the underlying client", func() {
+		mm = mockingmoby.NewMockingMoby()
+		ec = NewMobyWatcher(mm)
+		Expect(ec).NotTo(BeNil())
+		defer ec.Close()
+		Expect(ec.Client()).NotTo(BeNil())
+	})
+
 	It("cannot inspect a dead container", func() {
 		mm.AddContainer(deadDummy)
 		ctx, cancel := context.WithCancel(context.Background())
