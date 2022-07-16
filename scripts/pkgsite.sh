@@ -8,14 +8,16 @@ if ! command -v pkgsite &>/dev/null; then
     fi
 fi
 
-NPMBIN=$(npm bin)
+# In case the user hasn't set an explicit installation location, avoid polluting
+# our own project...
+NPMBIN=$(cd $HOME && npm bin)
 export PATH="$NPMBIN:$PATH"
-if ! command -v browser-refresh &>/dev/null; then
-    npm install browser-refresh
+if ! command -v browser-sync &>/dev/null; then
+    (cd $HOME && npm install browser-sync)
 fi
 
 if ! command -v nodemon &>/dev/null; then
-    npm install nodemon
+    (cd $HOME && npm install nodemon)
 fi
 
 # https://stackoverflow.com/a/2173421

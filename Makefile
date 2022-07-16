@@ -12,7 +12,7 @@ coverage: ## gathers coverage and updates README badge
 	@scripts/cov.sh
 
 pkgsite: ## serves Go documentation on port 6060
-	@echo "navigate to: http://localhost:6060/github.com/thediveo/go-plugger/v2"
+	@echo "navigate to: http://localhost:6060/github.com/thediveo/whalewatcher"
 	@scripts/pkgsite.sh
 
 report: ## run goreportcard on this module
