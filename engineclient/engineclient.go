@@ -80,7 +80,7 @@ type RucksackPacker interface {
 
 // ContainerEventType identifies and enumerates the container lifecycle events
 // of "alive" containers, including their demise. Please do not confuse this
-// lifecycle for alive containers with the usualy much more comprehensive
+// lifecycle for alive containers with the usually much more comprehensive
 // container lifecycles that include creating a container long before it might
 // become alive: such stages are of no interest to us here; for instance,
 // there's no container creation event, "only" the container start event.
