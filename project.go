@@ -21,8 +21,8 @@ import (
 )
 
 // ComposerProject represents a set of either running or paused (but always
-// "somehow" alive) containers belonging to a specific Docker Compose/Composer
-// project.
+// "somehow" alive) [Container]s belonging to a specific Docker
+// Compose/Composer project.
 //
 // As composer projects are artefacts above the first-level elements of the
 // Docker container engine we can only reconstruct them in an extremely limited
@@ -65,7 +65,7 @@ func (p *ComposerProject) ContainerNames() []string {
 	return names
 }
 
-// Container returns container information about the container with the
+// Container returns container information about the [Container] with the
 // specified name or ID. If the name or ID wasn't found in this project, then
 // nil is returned instead.
 func (p *ComposerProject) Container(nameorid string) *Container {
@@ -80,9 +80,9 @@ func (p *ComposerProject) Container(nameorid string) *Container {
 	return nil
 }
 
-// SetPaused changes a container's Paused state, obeying the design restriction
-// that Container objects are immutable. It returns the container in its new
-// state.
+// SetPaused changes a [Container]'s Paused state, obeying the design
+// restriction that Container objects are immutable. It returns the container in
+// its new state.
 func (p *ComposerProject) SetPaused(nameorid string, paused bool) *Container {
 	p.m.Lock()
 	defer p.m.Unlock()
