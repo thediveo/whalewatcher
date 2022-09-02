@@ -31,7 +31,7 @@ const Type = "docker.com"
 // the composer project a container is part of.
 const ComposerProjectLabel = "com.docker.compose.project"
 
-// PrivilegedLabel is the name of an optional container label signalling be its
+// PrivilegedLabel is the name of an optional container label signalling by its
 // sheer presence that labelled container has been started with a host config
 // that includes Privileged. The label's value is always empty, so neither
 // "true" nor "false" values here.
@@ -98,10 +98,10 @@ func WithRucksackPacker(packer engineclient.RucksackPacker) NewOption {
 // engine-specific.
 func (mw *MobyWatcher) ID(ctx context.Context) string {
 	info, err := mw.moby.Info(ctx)
-	if err == nil {
-		return info.ID
+	if err != nil {
+		return ""
 	}
-	return ""
+	return info.ID
 }
 
 // Type returns the type identifier for this container engine.
@@ -110,10 +110,10 @@ func (mw *MobyWatcher) Type() string { return Type }
 // Version information about the engine.
 func (mw *MobyWatcher) Version(ctx context.Context) string {
 	info, err := mw.moby.Info(ctx)
-	if err == nil {
-		return info.ServerVersion
+	if err != nil {
+		return ""
 	}
-	return ""
+	return info.ServerVersion
 }
 
 // API returns the container engine API path.
