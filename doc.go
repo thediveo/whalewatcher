@@ -95,7 +95,7 @@ The high-level view on whalewatcher's information model is as follows:
   - A [Portfolio] consists of [ComposerProject] objects, including the "unnamed"
     project.
   - A [ComposerProject] consists of [Container] descriptions; these descriptions
-    represent only a purposedly limited set of information, but can be augmented
+    represent only a purposely limited set of information, but can be augmented
     using "Rucksacks".
 
 # Portfolio
