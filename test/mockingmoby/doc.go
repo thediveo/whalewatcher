@@ -1,5 +1,4 @@
 /*
-
 Package mockingmoby is a very minimalist Docker mock client designed for simple
 unit tests in the whalewatcher package. Only limited listing and inspecting
 containers is supported, as well as streaming container start and die events.
@@ -16,6 +15,5 @@ The mocked containers are not created and destroyed using the standard Docker
 client service API but instead using AddContainer and RemoveContainer. In
 addition, a mock container can be "stopped" using StopContainer, so it gets into
 the "exited" state but still exists.
-
 */
 package mockingmoby

@@ -31,7 +31,7 @@ const Type = "docker.com"
 // the composer project a container is part of.
 const ComposerProjectLabel = "com.docker.compose.project"
 
-// PrivilegedLabel is the name of an optional container label signalling be its
+// PrivilegedLabel is the name of an optional container label signalling by its
 // sheer presence that labelled container has been started with a host config
 // that includes Privileged. The label's value is always empty, so neither
 // "true" nor "false" values here.
@@ -43,6 +43,7 @@ const PrivilegedLabel = "github.com/thediveo/whalewatcher/moby/privileged"
 type MobyAPIClient interface {
 	client.ContainerAPIClient
 	client.SystemAPIClient
+	NegotiateAPIVersion(ctx context.Context)
 	DaemonHost() string
 	Close() error
 }
@@ -55,8 +56,9 @@ type MobyWatcher struct {
 	packer engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
 }
 
-// Make sure that the EngineClient interface is fully implemented.
+// Make sure that the EngineClient and Preflighter interfaces are fully implemented.
 var _ (engineclient.EngineClient) = (*MobyWatcher)(nil)
+var _ (engineclient.Preflighter) = (*MobyWatcher)(nil)
 
 // NewMobyWatcher returns a new MobyWatcher using the specified Docker engine
 // client; typically, you would want to use this lower-level constructor only in
@@ -96,10 +98,10 @@ func WithRucksackPacker(packer engineclient.RucksackPacker) NewOption {
 // engine-specific.
 func (mw *MobyWatcher) ID(ctx context.Context) string {
 	info, err := mw.moby.Info(ctx)
-	if err == nil {
-		return info.ID
+	if err != nil {
+		return ""
 	}
-	return ""
+	return info.ID
 }
 
 // Type returns the type identifier for this container engine.
@@ -108,10 +110,10 @@ func (mw *MobyWatcher) Type() string { return Type }
 // Version information about the engine.
 func (mw *MobyWatcher) Version(ctx context.Context) string {
 	info, err := mw.moby.Info(ctx)
-	if err == nil {
-		return info.ServerVersion
+	if err != nil {
+		return ""
 	}
-	return ""
+	return info.ServerVersion
 }
 
 // API returns the container engine API path.
@@ -126,6 +128,14 @@ func (mw *MobyWatcher) Client() interface{} { return mw.moby }
 // Close cleans up and release any engine client resources, if necessary.
 func (mw *MobyWatcher) Close() {
 	mw.moby.Close()
+}
+
+// Allow an engine client to do some final pre-flight operations that might
+// require talking to a particular engine and thus should be controlled by a
+// context.
+func (mw *MobyWatcher) Preflight(ctx context.Context) {
+	// https://github.com/moby/moby/pull/42379
+	mw.moby.NegotiateAPIVersion(ctx)
 }
 
 // List all the currently alive and kicking containers, but do not list any

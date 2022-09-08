@@ -120,6 +120,31 @@ var _ = Describe("containerd engineclient", func() {
 		Expect(id).To(Equal("foo"))
 	})
 
+	It("sets a rucksack packer", func() {
+		if os.Getegid() != 0 {
+			Skip("needs root")
+		}
+		cwclient, err := containerd.New("/run/containerd/containerd.sock")
+		Expect(err).NotTo(HaveOccurred())
+		p := packer{}
+		cw := NewContainerdWatcher(cwclient, WithRucksackPacker(&p))
+		Expect(cw).NotTo(BeNil())
+		defer cw.Close()
+		Expect(cw.packer).To(BeIdenticalTo(&p))
+	})
+
+	It("returns the underlying client", func() {
+		if os.Getegid() != 0 {
+			Skip("needs root")
+		}
+		cwclient, err := containerd.New("/run/containerd/containerd.sock")
+		Expect(err).NotTo(HaveOccurred())
+		cw := NewContainerdWatcher(cwclient)
+		Expect(cw).NotTo(BeNil())
+		defer cw.Close()
+		Expect(cw.Client()).To(BeIdenticalTo(cw.client))
+	})
+
 	It("watches...", Serial, func() {
 		if os.Getegid() != 0 {
 			Skip("needs root")

@@ -17,6 +17,7 @@ package moby
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -47,23 +48,32 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 	It("gets and uses the underlying Docker client", func() {
 		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
 		Expect(err).NotTo(HaveOccurred())
+
 		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		done := make(chan struct{})
+		// While // https://github.com/moby/moby/pull/42379 is pending we need
+		// to run any API additional API calls from the same goroutine as where
+		// we start the Watch in order to not trigger the race detector.
+		nchan := make(chan []types.NetworkResource, 1)
 		go func() {
+			defer GinkgoRecover()
+			dc, ok := mw.Client().(client.APIClient)
+			Expect(ok).To(BeTrue())
+			Expect(dc).NotTo(BeNil())
+			networks, err := dc.NetworkList(ctx, types.NetworkListOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			nchan <- networks
+			mw.Client().(client.CommonAPIClient).NegotiateAPIVersion(ctx)
 			_ = mw.Watch(ctx)
 			close(done)
 		}()
-		Consistently(done, "1s").ShouldNot(BeClosed())
-
-		dc, ok := mw.Client().(client.APIClient)
-		Expect(ok).To(BeTrue())
-		Expect(dc).NotTo(BeNil())
-		networks, err := dc.NetworkList(ctx, types.NetworkListOptions{})
-		Expect(err).NotTo(HaveOccurred())
+		Consistently(done).WithTimeout(5 * time.Second).WithPolling(250 * time.Millisecond).
+			ShouldNot(BeClosed())
+		networks := <-nchan
 		Expect(networks).To(ContainElement(And(
 			HaveField("Name", Equal("bridge")),
 			HaveField("Driver", Equal("bridge")),

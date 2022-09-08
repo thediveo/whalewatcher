@@ -194,6 +194,9 @@ func (ww *watcher) Close() {
 // container engine, subject to the backoff (and thus optional throttling or
 // rate-limiting) specified when this watch was created.
 func (ww *watcher) Watch(ctx context.Context) error {
+	if pf, ok := ww.engine.(engineclient.Preflighter); ok {
+		pf.Preflight(ctx)
+	}
 	return backoff.Retry(func() error {
 		// In case we have an existing and non-empty portfolio, keep that
 		// visible to our users while we try to synchronize. If not, then simply

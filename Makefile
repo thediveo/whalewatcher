@@ -1,4 +1,4 @@
-.PHONY: help clean godoc reportcard test
+.PHONY: help clean pkgsite report test
 
 help: ## list available targets
 	@# Shamelessly stolen from Gomega's Makefile
@@ -6,12 +6,20 @@ help: ## list available targets
 
 clean: ## cleans up build and testing artefacts
 	rm -f coverage.html coverage.out coverage.txt
+	sudo rm -f coverage-root.out
 
-godoc: ## serves godoc on port 6060
-	@PATH=$(PATH):$(shell go env GOPATH)/bin; godoc -http=:6060
+coverage: ## gathers coverage and updates README badge
+	@scripts/cov.sh
+
+pkgsite: ## serves Go documentation on port 6060
+	@echo "navigate to: http://localhost:6060/github.com/thediveo/whalewatcher"
+	@scripts/pkgsite.sh
 
 report: ## run goreportcard on this module
 	@scripts/goreportcard.sh
 
 test: ## run unit tests
-	go test -v -p 1 -exec sudo ./... && go test -v -p 1 ./...
+	@go test -v -p=1 -race -exec sudo ./... && go test -v -p=1 -race ./...
+
+vuln: ## run go vulnerabilities check
+	@govulncheck ./...

@@ -1,21 +1,20 @@
 /*
-
 Package watcher allows keeping track of the currently alive containers of a
 container engine.
 
 Currently, the following container engines are supported:
 
-- Docker
-- plain containerd with nerdctl-project awareness
+  - Docker,
+  - plain containerd, including nerdctl-project awareness.
 
-Usage
+# Usage
 
 Creating container watchers for specific container engines preferably should be
 done using a particular container engine's NewWatcher convenience function, such
 as:
 
-    import "github.com/thediveo/whalewatcher/watcher/moby"
-    moby := NewWatcher("")
+	import "github.com/thediveo/whalewatcher/watcher/moby"
+	moby := NewWatcher("")
 
 The engine watcher NewWatcher() constructors additionally accept options. The
 only option currently being defines is to specify a container engine's PID. The
@@ -25,7 +24,7 @@ namespaces. It's up to the API user to supply the correct PIDs where necessary
 and known. The watchers themselves do not need the PID information for their own
 operations.
 
-Gory Details Notes
+# Gory Details Notes
 
 The really difficult part here is to properly synchronize at the beginning with
 a container engine's state without getting out of sync: while we get ordered
@@ -71,6 +70,5 @@ optimize to store only the latest pause state of a container. After the full
 container listing is done, we "replay" the queued pause state change events:
 this ensures that we end up with the correct pausing state for the containers
 that changed their pause states while the listing was in progress.
-
 */
 package watcher

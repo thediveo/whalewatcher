@@ -54,6 +54,9 @@ func NewMockingMoby() *MockingMoby {
 	}
 }
 
+// NegotiateAPIVersion is a mock no-op.
+func (mm *MockingMoby) NegotiateAPIVersion(ctx context.Context) {}
+
 // DaemonHost returns the host address used by the client
 func (mm *MockingMoby) DaemonHost() string { return "mock://mocked" }
 
