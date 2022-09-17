@@ -6,7 +6,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/containerd/containerd v1.6.8
 	github.com/containerd/typeurl v1.0.2
-	github.com/docker/docker v20.10.17+incompatible
+	github.com/docker/docker v20.10.18+incompatible
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.2
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799
