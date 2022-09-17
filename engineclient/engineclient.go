@@ -78,6 +78,13 @@ type RucksackPacker interface {
 	Pack(container *whalewatcher.Container, inspection interface{})
 }
 
+// Trialer optionally allows an engine client to update cached engine
+// information on the first attempt or on any retry afterwards. Any error
+// returned will abort the current attempt, back off, and then a retry.
+type Trialer interface {
+	Try(ctx context.Context) error
+}
+
 // ContainerEventType identifies and enumerates the container lifecycle events
 // of "alive" containers, including their demise. Please do not confuse this
 // lifecycle for alive containers with the usually much more comprehensive

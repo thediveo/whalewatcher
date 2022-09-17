@@ -16,6 +16,8 @@ package watcher
 
 import (
 	"context"
+	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -55,6 +57,34 @@ var (
 	}
 )
 
+type trialEngine struct {
+	engineclient.EngineClient
+
+	Retries uint32 // the first number of trials to fail
+	trials  uint32 // number of backoff trials
+}
+
+// Trials returns the number of backoff trails so far.
+func (e *trialEngine) Trials() uint32 {
+	return atomic.LoadUint32(&e.trials)
+}
+
+var _ engineclient.Trialer = (*trialEngine)(nil)
+
+// ClearTrials resets the trial counter.
+func (e *trialEngine) ClearTrials() {
+	atomic.StoreUint32(&e.trials, 0)
+}
+
+// Try counts the number of trials and returns an error for the first (number
+// of) Retries.
+func (e *trialEngine) Try(ctx context.Context) error {
+	if atomic.AddUint32(&e.trials, 1) <= e.Retries {
+		return errors.New("thou shall retry")
+	}
+	return nil
+}
+
 var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 	BeforeEach(func() {
@@ -66,12 +96,16 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 	})
 
 	var mm *mockingmoby.MockingMoby
+	var te *trialEngine
 	var ww *watcher
 
 	BeforeEach(func() {
 		mm = mockingmoby.NewMockingMoby()
 		Expect(mm).NotTo(BeNil())
-		ww = New(moby.NewMobyWatcher(mm), backoff.NewConstantBackOff(500*time.Millisecond)).(*watcher)
+		te = &trialEngine{
+			EngineClient: moby.NewMobyWatcher(mm),
+		}
+		ww = New(te, backoff.NewConstantBackOff(500*time.Millisecond)).(*watcher)
 		Expect(ww).NotTo(BeNil())
 
 		DeferCleanup(func() {
@@ -265,14 +299,23 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 
 		cctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
+
+		te.ClearTrials()
+		te.Retries = 2
 		go func() {
 			_ = ww.Watch(cctx)
 			close(done)
 		}()
 
 		// wait for the initial synchronization to be done and the initial
-		// discovery results having just come in.
-		Eventually(ww.Ready()).Should(BeClosed())
+		// discovery results having just come in. As we're doing retries with
+		// pauses in between, we must have an initial period where the
+		// synchronization must not already be done.
+		Consistently(ww.Ready()).WithTimeout(1 * time.Second).ShouldNot(BeClosed())
+		Eventually(ww.Ready()).WithTimeout(2 * time.Second).Should(BeClosed())
+
+		// Check that retries were done.
+		Expect(te.Trials()).To(Equal(te.Retries + 1))
 
 		Expect(ww.Portfolio().Project("").ContainerNames()).To(ConsistOf(mockingMoby.Name))
 
