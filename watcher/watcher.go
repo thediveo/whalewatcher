@@ -197,7 +197,15 @@ func (ww *watcher) Watch(ctx context.Context) error {
 	if pf, ok := ww.engine.(engineclient.Preflighter); ok {
 		pf.Preflight(ctx)
 	}
+	trialer, _ := ww.engine.(engineclient.Trialer)
 	return backoff.Retry(func() error {
+		// Allow the specific engine client to do whatever it needs to do on
+		// each new attempt/trial.
+		if trialer != nil {
+			if err := trialer.Try(ctx); err != nil {
+				return err
+			}
+		}
 		// In case we have an existing and non-empty portfolio, keep that
 		// visible to our users while we try to synchronize. If not, then simply
 		// go "live" immediately.
