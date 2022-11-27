@@ -30,6 +30,8 @@ import (
 	. "github.com/thediveo/fdooze"
 )
 
+var slowSpec = NodeTimeout(20 * time.Second)
+
 var _ = Describe("Moby watcher engine end-to-end test", func() {
 
 	BeforeEach(func() {
@@ -45,14 +47,14 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		Expect(err).To(HaveOccurred())
 	})
 
-	It("gets and uses the underlying Docker client", func() {
+	It("gets and uses the underlying Docker client", Serial, slowSpec, func(ctx context.Context) {
 		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		done := make(chan struct{})
 		// While // https://github.com/moby/moby/pull/42379 is pending we need
@@ -80,13 +82,13 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		)))
 	})
 
-	It("watches", Serial, func() {
+	It("watches", Serial, slowSpec, func(ctx context.Context) {
 		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		done := make(chan struct{})
 		go func() {
 			_ = mw.Watch(ctx)

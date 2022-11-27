@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/api/services/tasks/v1"
@@ -34,6 +35,8 @@ import (
 	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/whalewatcher/test/matcher"
 )
+
+var slowSpec = NodeTimeout(20 * time.Second)
 
 type packer struct{}
 
@@ -53,22 +56,23 @@ var _ = Describe("containerd engineclient", func() {
 	BeforeEach(func() {
 		goodfds := Filedescriptors()
 		DeferCleanup(func() {
-			Eventually(Goroutines).ShouldNot(HaveLeaked())
+			Eventually(Goroutines).Within(2 * time.Second).ProbeEvery(250 * time.Millisecond).
+				ShouldNot(HaveLeaked())
 			Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
 		})
 	})
 
-	It("containerd client doesn't leak goroutines", func() {
+	It("containerd client doesn't leak goroutines", func(ctx context.Context) {
 		if os.Getegid() != 0 {
 			Skip("needs root")
 		}
 		cdclient, err := containerd.New("/run/containerd/containerd.sock")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(cdclient.Server(context.Background())).Error().NotTo(HaveOccurred())
+		Expect(cdclient.Server(ctx)).Error().NotTo(HaveOccurred())
 		defer cdclient.Close()
 	})
 
-	It("has engine ID and version", func() {
+	It("has engine ID and version", func(ctx context.Context) {
 		if os.Getegid() != 0 {
 			Skip("needs root")
 		}
@@ -79,11 +83,11 @@ var _ = Describe("containerd engineclient", func() {
 		defer cw.Close()
 
 		Expect(cw.PID()).To(Equal(123456))
-		Expect(cw.ID(context.Background())).NotTo(BeEmpty())
-		Expect(cw.Version(context.Background())).NotTo(BeEmpty())
+		Expect(cw.ID(ctx)).NotTo(BeEmpty())
+		Expect(cw.Version(ctx)).NotTo(BeEmpty())
 	})
 
-	It("survives cancelled contexts", func() {
+	It("survives cancelled contexts", func(ctx context.Context) {
 		if os.Getegid() != 0 {
 			Skip("needs root")
 		}
@@ -93,8 +97,8 @@ var _ = Describe("containerd engineclient", func() {
 		Expect(cw).NotTo(BeNil())
 		defer cw.Close()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
+		ctx, cancel := context.WithCancel(ctx)
+		cancel() // immediately cancel it to check error handling
 
 		cntrs, err := cw.List(ctx)
 		Expect(err).To(HaveOccurred())
@@ -145,7 +149,7 @@ var _ = Describe("containerd engineclient", func() {
 		Expect(cw.Client()).To(BeIdenticalTo(cw.client))
 	})
 
-	It("watches...", Serial, func() {
+	It("watches...", Serial, slowSpec, func(ctx context.Context) {
 		if os.Getegid() != 0 {
 			Skip("needs root")
 		}
@@ -163,7 +167,7 @@ var _ = Describe("containerd engineclient", func() {
 		Expect(cw.Type()).To(Equal(Type))
 		Expect(cw.API()).NotTo(BeEmpty())
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		evs, errs := cw.LifecycleEvents(ctx)
 
 		// https://containerd.io/docs/getting-started
@@ -280,9 +284,9 @@ var _ = Describe("containerd engineclient", func() {
 		Eventually(errs).Should(BeClosed())
 	})
 
-	Context("dynamic container workload", Ordered, func() {
+	Context("dynamic container workload", Serial, Ordered, func() {
 
-		It("ignores Docker containers at containerd level", func() {
+		It("ignores Docker containers at containerd level", slowSpec, func(ctx context.Context) {
 			if os.Getegid() != 0 {
 				Skip("needs root")
 			}
@@ -300,7 +304,7 @@ var _ = Describe("containerd engineclient", func() {
 			Expect(cw.Type()).To(Equal(Type))
 			Expect(cw.API()).NotTo(BeEmpty())
 
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(ctx)
 			evs, errs := cw.LifecycleEvents(ctx)
 
 			wwctx := namespaces.WithNamespace(ctx, mobyns)
