@@ -28,7 +28,10 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
+	. "github.com/thediveo/success"
 )
+
+var slowSpec = NodeTimeout(20 * time.Second)
 
 var _ = Describe("Moby watcher engine end-to-end test", func() {
 
@@ -41,18 +44,16 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 	})
 
 	It("doesn't accept invalid engine API paths", func() {
-		_, err := New("localhost:66666", nil)
-		Expect(err).To(HaveOccurred())
+		Expect(New("localhost:66666", nil)).Error().To(HaveOccurred())
 	})
 
-	It("gets and uses the underlying Docker client", func() {
-		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
-		Expect(err).NotTo(HaveOccurred())
+	It("gets and uses the underlying Docker client", Serial, slowSpec, func(ctx context.Context) {
+		mw := Successful(New("unix:///var/run/docker.sock", nil, moby.WithPID(123456)))
 
 		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		done := make(chan struct{})
 		// While // https://github.com/moby/moby/pull/42379 is pending we need
@@ -64,8 +65,7 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 			dc, ok := mw.Client().(client.APIClient)
 			Expect(ok).To(BeTrue())
 			Expect(dc).NotTo(BeNil())
-			networks, err := dc.NetworkList(ctx, types.NetworkListOptions{})
-			Expect(err).NotTo(HaveOccurred())
+			networks := Successful(dc.NetworkList(ctx, types.NetworkListOptions{}))
 			nchan <- networks
 			mw.Client().(client.CommonAPIClient).NegotiateAPIVersion(ctx)
 			_ = mw.Watch(ctx)
@@ -80,13 +80,12 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		)))
 	})
 
-	It("watches", Serial, func() {
-		mw, err := New("unix:///var/run/docker.sock", nil, moby.WithPID(123456))
-		Expect(err).NotTo(HaveOccurred())
+	It("watches", Serial, slowSpec, func(ctx context.Context) {
+		mw := Successful(New("unix:///var/run/docker.sock", nil, moby.WithPID(123456)))
 		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		done := make(chan struct{})
 		go func() {
 			_ = mw.Watch(ctx)
@@ -94,9 +93,8 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		}()
 		Consistently(done, "1s").ShouldNot(BeClosed())
 
-		pool, err := dockertest.NewPool("unix:///var/run/docker.sock")
-		Expect(err).NotTo(HaveOccurred())
-		cntr, err := pool.RunWithOptions(&dockertest.RunOptions{
+		pool := Successful(dockertest.NewPool("unix:///var/run/docker.sock"))
+		cntr := Successful(pool.RunWithOptions(&dockertest.RunOptions{
 			Repository: "busybox",
 			// ...here, we don't care about the name here, as long as we get a
 			// fresh container.
@@ -105,8 +103,7 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 			Labels: map[string]string{
 				"com.docker.compose.project": "whalewatcher_whackywhale",
 			},
-		})
-		Expect(err).NotTo(HaveOccurred())
+		}))
 		var purge sync.Once
 		defer purge.Do(func() { _ = pool.Purge(cntr) })
 

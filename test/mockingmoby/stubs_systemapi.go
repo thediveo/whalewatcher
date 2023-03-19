@@ -27,7 +27,7 @@ func (mm *MockingMoby) RegistryLogin(ctx context.Context, auth types.AuthConfig)
 }
 
 // DiskUsage is not implemented.
-func (mm *MockingMoby) DiskUsage(ctx context.Context) (types.DiskUsage, error) {
+func (mm *MockingMoby) DiskUsage(ctx context.Context, options types.DiskUsageOptions) (types.DiskUsage, error) {
 	return types.DiskUsage{}, errNotImplemented
 }
 

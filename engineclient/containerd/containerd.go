@@ -26,7 +26,7 @@ import (
 	tasktypes "github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/containers"
 	containerdns "github.com/containerd/containerd/namespaces"
-	"github.com/containerd/typeurl"
+	"github.com/containerd/typeurl/v2"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 )
@@ -237,9 +237,9 @@ func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*wha
 func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]string, task *tasktypes.Process) *whalewatcher.Container {
 	paused := false
 	switch task.Status {
-	case tasktypes.StatusRunning:
+	case tasktypes.Status_RUNNING:
 		break
-	case tasktypes.StatusPausing, tasktypes.StatusPaused:
+	case tasktypes.Status_PAUSING, tasktypes.Status_PAUSED:
 		paused = true
 	default:
 		return nil

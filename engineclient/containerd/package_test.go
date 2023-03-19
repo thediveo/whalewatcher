@@ -16,7 +16,6 @@ package containerd
 
 import (
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -24,7 +23,5 @@ import (
 
 func TestContainerd(t *testing.T) {
 	RegisterFailHandler(Fail)
-	_, reporterConfig := GinkgoConfiguration()
-	reporterConfig.SlowSpecThreshold = 30 * time.Second
-	RunSpecs(t, "engineclient/containerd package", reporterConfig)
+	RunSpecs(t, "engineclient/containerd package")
 }
