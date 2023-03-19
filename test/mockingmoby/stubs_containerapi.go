@@ -17,9 +17,9 @@ package mockingmoby
 import (
 	"context"
 	"io"
-	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -112,7 +112,7 @@ func (mm *MockingMoby) ContainerResize(ctx context.Context, container string, op
 }
 
 // ContainerRestart is not implemented.
-func (mm *MockingMoby) ContainerRestart(ctx context.Context, container string, timeout *time.Duration) error {
+func (mm *MockingMoby) ContainerRestart(ctx context.Context, container string, options container.StopOptions) error {
 	return errNotImplemented
 }
 
@@ -137,7 +137,7 @@ func (mm *MockingMoby) ContainerStart(ctx context.Context, container string, opt
 }
 
 // ContainerStop is not implemented.
-func (mm *MockingMoby) ContainerStop(ctx context.Context, container string, timeout *time.Duration) error {
+func (mm *MockingMoby) ContainerStop(ctx context.Context, container string, options container.StopOptions) error {
 	return errNotImplemented
 }
 
