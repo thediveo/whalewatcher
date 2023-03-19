@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/success"
 )
 
 var _ = Describe("informs", func() {
@@ -26,8 +27,7 @@ var _ = Describe("informs", func() {
 	It("returns mocked engine information", func() {
 		mm := NewMockingMoby()
 		defer mm.Close()
-		info, err := mm.Info(context.Background())
-		Expect(err).NotTo(HaveOccurred())
+		info := Successful(mm.Info(context.Background()))
 		Expect(info.ID).To(HaveLen(6*(4+1+4+1) - 1))
 		Expect(info.ServerVersion).NotTo(BeEmpty())
 	})

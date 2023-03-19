@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
+	. "github.com/thediveo/success"
 	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
@@ -133,30 +134,25 @@ var _ = Describe("moby engineclient", func() {
 
 		defer func() { ec.packer = nil }()
 		ec.packer = &packer{}
-		cntr, err := ec.Inspect(ctx, furiousFuruncle.ID)
-		Expect(err).NotTo(HaveOccurred())
+		cntr := Successful(ec.Inspect(ctx, furiousFuruncle.ID))
 		Expect(cntr).To(HaveID(furiousFuruncle.ID))
 		Expect(cntr.Rucksack).NotTo(BeNil())
 
 		mm.AddContainer(deadDummy)
-		_, err = ec.Inspect(ctx, deadDummy.ID)
-		Expect(err).To(MatchError(MatchRegexp(`no initial process`)))
+		Expect(ec.Inspect(ctx, deadDummy.ID)).Error().To(MatchError(MatchRegexp(`no initial process`)))
 
 		cancel()
-		_, err = ec.Inspect(ctx, furiousFuruncle.ID)
-		Expect(err).To(HaveOccurred())
+		Expect(ec.Inspect(ctx, furiousFuruncle.ID)).Error().To(HaveOccurred())
 	})
 
 	It("lists furuncle", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 
-		cntr, err := ec.List(ctx)
-		Expect(err).NotTo(HaveOccurred())
+		cntr := Successful(ec.List(ctx))
 		Expect(cntr).To(ConsistOf(HaveID(furiousFuruncle.ID)))
 
 		cancel()
-		_, err = ec.List(ctx)
-		Expect(err).To(HaveOccurred())
+		Expect(ec.List(ctx)).Error().To(HaveOccurred())
 	})
 
 	It("watches containers come and go", func() {

@@ -188,6 +188,8 @@ github.com/stretchr/testify v1.8.2 h1:+h33VjcLVPDHtOdpUCuF+7gSuG3yGIftsP1YvFihtJ
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/thediveo/fdooze v0.1.5 h1:PJFgCpWYsCwpOU8bUQy2gc50pf/YEQNq+OmMjYAn85M=
 github.com/thediveo/fdooze v0.1.5/go.mod h1:F9YMmx5WBcn41mbsTFGc1BFCHiFiHVmOX8QajnqUp9g=
+github.com/thediveo/success v1.0.1 h1:NVwUOwKUwaN8szjkJ+vsiM2L3sNBFscldoDJ2g2tAPg=
+github.com/thediveo/success v1.0.1/go.mod h1:AZ8oUArgbIsCuDEWrzWNQHdKnPbDOLQsWOFj9ynwLt0=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/vishvananda/netlink v1.1.0/go.mod h1:cTgwzPIzzgDAYoQrMm0EdrjRUBkTqKYppBueQtXaqoE=
 github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df/go.mod h1:JP3t17pCcGlemwknint6hfoeCVQrEMVwxRLRjXpq+BU=

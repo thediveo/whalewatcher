@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/api/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/thediveo/success"
 )
 
 var _ = Describe("lists mocked containers", func() {
@@ -29,13 +30,11 @@ var _ = Describe("lists mocked containers", func() {
 		mm := NewMockingMoby()
 		defer mm.Close()
 
-		cntrs, err := mm.ContainerList(context.Background(), types.ContainerListOptions{})
-		Expect(err).NotTo(HaveOccurred())
+		cntrs := Successful(mm.ContainerList(context.Background(), types.ContainerListOptions{}))
 		Expect(cntrs).To(HaveLen(0))
 
 		mm.AddContainer(mockingMoby)
-		cntrs, err = mm.ContainerList(context.Background(), types.ContainerListOptions{})
-		Expect(err).NotTo(HaveOccurred())
+		cntrs = Successful(mm.ContainerList(context.Background(), types.ContainerListOptions{}))
 		Expect(cntrs).To(HaveLen(1))
 		c := cntrs[0]
 		Expect(c.ID).To(Equal(mockingMoby.ID))
@@ -44,8 +43,7 @@ var _ = Describe("lists mocked containers", func() {
 		Expect(c.Status).To(Equal(MockedStatus[mockingMoby.Status]))
 
 		mm.AddContainer(furiousFuruncle)
-		cntrs, err = mm.ContainerList(context.Background(), types.ContainerListOptions{})
-		Expect(err).NotTo(HaveOccurred())
+		cntrs = Successful(mm.ContainerList(context.Background(), types.ContainerListOptions{}))
 		Expect(cntrs).To(HaveLen(2))
 		Expect(cntrs).To(ConsistOf(
 			HaveField("ID", Equal(mockingMoby.ID)),
@@ -68,23 +66,23 @@ var _ = Describe("lists mocked containers", func() {
 		defer mm.Close()
 		doh := errors.New("doh!")
 
-		_, err := mm.ContainerInspect(
+		Expect(mm.ContainerInspect(
 			WithHook(
 				context.Background(),
 				ContainerInspectPre,
 				func(HookKey) error {
 					return doh
-				}), "foobar")
-		Expect(err).To(Equal(doh))
+				}), "foobar")).
+			Error().To(Equal(doh))
 
-		_, err = mm.ContainerInspect(
+		Expect(mm.ContainerInspect(
 			WithHook(
 				context.Background(),
 				ContainerInspectPost,
 				func(HookKey) error {
 					return doh
-				}), "foobar")
-		Expect(err).To(Equal(doh))
+				}), "foobar")).
+			Error().To(Equal(doh))
 	})
 
 })

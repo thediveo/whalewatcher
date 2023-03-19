@@ -19,9 +19,11 @@ import (
 	"errors"
 
 	"github.com/docker/docker/api/types"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	. "github.com/thediveo/success"
 )
 
 var _ = Describe("inspects mocked containers", func() {
@@ -33,8 +35,7 @@ var _ = Describe("inspects mocked containers", func() {
 		Expect(mm.ContainerInspect(context.Background(), "foo")).Error().To(HaveOccurred())
 
 		mm.AddContainer(furiousFuruncle)
-		details, err := mm.ContainerInspect(context.Background(), furiousFuruncle.ID)
-		Expect(err).NotTo(HaveOccurred())
+		details := Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.ID))
 		cmatcher := MatchFields(IgnoreExtras, Fields{
 			"ContainerJSONBase": PointTo(MatchFields(IgnoreExtras, Fields{
 				"ID":   Equal(furiousFuruncle.ID),
@@ -52,8 +53,7 @@ var _ = Describe("inspects mocked containers", func() {
 		})
 		Expect(details).To(cmatcher)
 
-		details, err = mm.ContainerInspect(context.Background(), furiousFuruncle.Name)
-		Expect(err).NotTo(HaveOccurred())
+		details = Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.Name))
 		Expect(details).To(cmatcher)
 	})
 
@@ -62,8 +62,7 @@ var _ = Describe("inspects mocked containers", func() {
 		defer mm.Close()
 		mm.AddContainer(furiousFuruncle)
 		mm.StopContainer(furiousFuruncle.Name)
-		details, err := mm.ContainerInspect(context.Background(), furiousFuruncle.Name)
-		Expect(err).NotTo(HaveOccurred())
+		details := Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.Name))
 		Expect(details).To(MatchFields(IgnoreExtras, Fields{
 			"ContainerJSONBase": PointTo(MatchFields(IgnoreExtras, Fields{
 				"ID":   Equal(furiousFuruncle.ID),
@@ -81,8 +80,7 @@ var _ = Describe("inspects mocked containers", func() {
 		}))
 
 		mm.AddContainer(pausingPm)
-		details, err = mm.ContainerInspect(context.Background(), pausingPm.Name)
-		Expect(err).NotTo(HaveOccurred())
+		details = Successful(mm.ContainerInspect(context.Background(), pausingPm.Name))
 		Expect(details).To(MatchFields(IgnoreExtras, Fields{
 			"ContainerJSONBase": PointTo(MatchFields(IgnoreExtras, Fields{
 				"ID": Equal(pausingPm.ID),
@@ -110,25 +108,24 @@ var _ = Describe("inspects mocked containers", func() {
 		defer mm.Close()
 		doh := errors.New("doh!")
 
-		cntrs, err := mm.ContainerList(
+		Expect(mm.ContainerList(
 			WithHook(
 				context.Background(),
 				ContainerListPost,
 				func(key HookKey) error {
 					Expect(key).To(Equal(ContainerListPost))
 					return doh
-				}), types.ContainerListOptions{})
-		Expect(err).To(Equal(doh))
-		Expect(cntrs).To(BeNil())
+				}), types.ContainerListOptions{})).
+			Error().To(Equal(doh))
 
-		_, err = mm.ContainerList(
+		Expect(mm.ContainerList(
 			WithHook(
 				context.Background(),
 				ContainerListPre,
 				func(HookKey) error {
 					return doh
-				}), types.ContainerListOptions{})
-		Expect(err).To(Equal(doh))
+				}), types.ContainerListOptions{})).
+			Error().To(Equal(doh))
 	})
 
 })
