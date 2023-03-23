@@ -124,4 +124,22 @@ var _ = Describe("composer project proxy", func() {
 		Expect(ff.Paused).To(BeFalse())
 	})
 
+	It("ignores trying to pause a non-existing container", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		Expect(p.SetPaused("foobarz", true)).To(BeNil())
+	})
+
+	It("returns the original container when pause state is unchanged", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		p.add(&Container{Name: "furious_furuncle"})
+		ff := p.Container("furious_furuncle")
+		ff2 := p.SetPaused(ff.Name, false)
+		Expect(ff2).NotTo(BeNil())
+		Expect(ff2).To(BeIdenticalTo(ff))
+	})
+
 })

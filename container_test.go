@@ -28,9 +28,9 @@ import (
 // project name label, as well as a random ID string. The container ID and PID
 // is then returned to the caller.
 func newTestContainer(name, projectname string) (*Container, string, int) {
+	GinkgoHelper()
 	o := make([]byte, 32) // length of fake SHA256 in "octets" :p
-	_, err := crand.Read(o)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	Expect(crand.Read(o)).Error().NotTo(HaveOccurred())
 	id := hex.EncodeToString(o)
 	pid := rand.Intn(4194303) + 1
 	return &Container{

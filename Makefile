@@ -1,4 +1,4 @@
-.PHONY: help clean pkgsite report test
+.PHONY: help chores clean coverage pkgsite report test vuln
 
 help: ## list available targets
 	@# Shamelessly stolen from Gomega's Makefile
@@ -21,5 +21,8 @@ report: ## run goreportcard on this module
 test: ## run unit tests
 	@go test -v -p=1 -race -exec sudo ./... && go test -v -p=1 -race ./...
 
-vuln: ## run go vulnerabilities check
-	@scripts/vuln.sh ./...
+vuln: ## runs govulncheck
+	@scripts/vuln.sh
+
+chores: ## updates Go binaries and NPM helper packages if necessary
+	@scripts/chores.sh
