@@ -5,7 +5,7 @@
 ![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)
 ![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
-![Coverage](https://img.shields.io/badge/Coverage-90.9%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-90.7%25-brightgreen)
 
 🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
 the tedious task of constantly monitoring "alive" container workloads: no need

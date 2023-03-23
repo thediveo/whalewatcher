@@ -93,8 +93,8 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.API()).NotTo(BeEmpty())
 	})
 
-	It("has an ID and version", func() {
-		ctx, cancel := context.WithCancel(context.Background())
+	It("has an ID and version", func(ctx context.Context) {
+		ctx, cancel := context.WithCancel(ctx)
 		Expect(ec.ID(ctx)).ToNot(BeEmpty())
 		Expect(ec.Version(ctx)).NotTo(BeEmpty())
 		cancel()
@@ -102,7 +102,7 @@ var _ = Describe("moby engineclient", func() {
 	})
 
 	It("sets a rucksack packer", func() {
-		mm = mockingmoby.NewMockingMoby()
+		mm := mockingmoby.NewMockingMoby() // want to control rucksack
 		p := packer{}
 		ec = NewMobyWatcher(mm, WithRucksackPacker(&p))
 		Expect(ec).NotTo(BeNil())
@@ -111,16 +111,16 @@ var _ = Describe("moby engineclient", func() {
 	})
 
 	It("returns the underlying client", func() {
-		mm = mockingmoby.NewMockingMoby()
+		mm := mockingmoby.NewMockingMoby()
 		ec = NewMobyWatcher(mm)
 		Expect(ec).NotTo(BeNil())
 		defer ec.Close()
 		Expect(ec.Client()).NotTo(BeNil())
 	})
 
-	It("cannot inspect a dead container", func() {
+	It("cannot inspect a dead container", func(ctx context.Context) {
 		mm.AddContainer(deadDummy)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
 		_, err := ec.Inspect(ctx, deadDummy.ID)
@@ -128,8 +128,8 @@ var _ = Describe("moby engineclient", func() {
 		Expect(engineclient.IsProcesslessContainer(err)).To(BeTrue())
 	})
 
-	It("inspects a furuncle", func() {
-		ctx, cancel := context.WithCancel(context.Background())
+	It("inspects a furuncle", func(ctx context.Context) {
+		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
 		defer func() { ec.packer = nil }()
@@ -145,8 +145,8 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.Inspect(ctx, furiousFuruncle.ID)).Error().To(HaveOccurred())
 	})
 
-	It("lists furuncle", func() {
-		ctx, cancel := context.WithCancel(context.Background())
+	It("lists furuncle", func(ctx context.Context) {
+		ctx, cancel := context.WithCancel(ctx)
 
 		cntr := Successful(ec.List(ctx))
 		Expect(cntr).To(ConsistOf(HaveID(furiousFuruncle.ID)))
@@ -155,8 +155,8 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.List(ctx)).Error().To(HaveOccurred())
 	})
 
-	It("watches containers come and go", func() {
-		ctx, cancel := context.WithCancel(context.Background())
+	It("watches containers come and go", func(ctx context.Context) {
+		ctx, cancel := context.WithCancel(ctx)
 
 		evs, errs := ec.LifecycleEvents(ctx)
 		Expect(evs).NotTo(BeNil())

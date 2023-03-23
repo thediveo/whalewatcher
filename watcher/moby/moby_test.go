@@ -120,7 +120,7 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		// and envtually that container should also be gone from the watch list
 		// after we killed it.
 		purge.Do(func() {
-			Expect(pool.Purge(cntr)).NotTo(HaveOccurred())
+			Expect(pool.Purge(cntr)).To(Succeed())
 		})
 		Eventually(portfolio).Should(BeEmpty())
 
