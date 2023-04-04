@@ -19,7 +19,8 @@ report: ## run goreportcard on this module
 	@scripts/goreportcard.sh
 
 test: ## run unit tests
-	@go test -v -p=1 -race -exec sudo ./... && go test -v -p=1 -race ./...
+	go test -v -p=1 -race -exec sudo ./...
+	go test -v -p=1 -race ./...
 
 vuln: ## runs govulncheck
 	@scripts/vuln.sh
