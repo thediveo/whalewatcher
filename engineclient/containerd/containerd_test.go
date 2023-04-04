@@ -328,7 +328,7 @@ var _ = Describe("containerd engineclient", func() {
 		}()
 
 		Expect(cw.Inspect(wwctx, testns+"/"+buzzybocks.ID())).Error().
-			To(HaveField("Error()", MatchRegexp(`task .* not found`)))
+			To(MatchError(MatchRegexp(`task .* not found`)))
 	})
 
 	Context("dynamic container workload", Serial, Ordered, func() {
@@ -403,13 +403,10 @@ var _ = Describe("containerd engineclient", func() {
 
 			By("stopping container/task")
 			Expect(morbidmobystask.Kill(wwctx, syscall.SIGKILL)).Error().NotTo(HaveOccurred())
-			Eventually(func() string {
+			Eventually(func() error {
 				_, err := cw.Inspect(wwctx, mobyns+"/"+momo)
-				if err == nil {
-					return ""
-				}
-				return err.Error()
-			}).Should(MatchRegexp(`container .* has no initial process`))
+				return err
+			}).Should(MatchError(MatchRegexp(`container .* has no initial process`)))
 
 			By("deleting container/task")
 			// Get rid of the task.
