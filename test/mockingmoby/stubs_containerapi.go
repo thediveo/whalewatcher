@@ -37,8 +37,8 @@ func (mm *MockingMoby) ContainerCommit(ctx context.Context, container string, op
 }
 
 // ContainerCreate is not implemented.
-func (mm *MockingMoby) ContainerCreate(ctx context.Context, config *containertypes.Config, hostConfig *containertypes.HostConfig, networkingConfig *networktypes.NetworkingConfig, platform *specs.Platform, containerName string) (containertypes.ContainerCreateCreatedBody, error) {
-	return containertypes.ContainerCreateCreatedBody{}, errNotImplemented
+func (mm *MockingMoby) ContainerCreate(ctx context.Context, config *containertypes.Config, hostConfig *containertypes.HostConfig, networkingConfig *networktypes.NetworkingConfig, platform *specs.Platform, containerName string) (containertypes.CreateResponse, error) {
+	return containertypes.CreateResponse{}, errNotImplemented
 }
 
 // ContainerDiff is not implemented.
@@ -157,7 +157,7 @@ func (mm *MockingMoby) ContainerUpdate(ctx context.Context, container string, up
 }
 
 // ContainerWait is not implemented.
-func (mm *MockingMoby) ContainerWait(ctx context.Context, container string, condition containertypes.WaitCondition) (<-chan containertypes.ContainerWaitOKBody, <-chan error) {
+func (mm *MockingMoby) ContainerWait(ctx context.Context, container string, condition containertypes.WaitCondition) (<-chan containertypes.WaitResponse, <-chan error) {
 	return nil, nil
 }
 
