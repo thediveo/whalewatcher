@@ -6,9 +6,10 @@ replace github.com/containerd/containerd => github.com/containerd/containerd v1.
 
 require github.com/docker/distribution v2.8.2+incompatible // indirect
 
+require github.com/containerd/containerd v1.7.2
+
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/containerd/containerd v1.6.6
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v24.0.2+incompatible
 	github.com/onsi/ginkgo/v2 v2.9.7
