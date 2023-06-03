@@ -189,6 +189,11 @@ The included `go-plugger.code-workspace` defines the following tasks:
   so and then runs it on the code base.
 - `make test`: runs **all** tests (including dynamic plugins).
 
+## Contributing
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Copyright and License
 
-Copyright 2021 Harald Albrecht, licensed under the Apache License, Version 2.0.
+`whalewatcher` is Copyright 2021, 2023 Harald Albrecht, licensed under the
+Apache License, Version 2.0.
