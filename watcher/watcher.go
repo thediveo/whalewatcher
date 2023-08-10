@@ -94,8 +94,8 @@ type watcher struct {
 	bluenorwegians []string           // container IDs we know to have died while list in progress.
 	pauses         pendingPauseStates // (un)pause state changes while list in progress.
 
-	once  sync.Once     // "protects" the ready channel
-	ready chan struct{} // ready channel signal
+	ready      chan struct{} // ready channel signal
+	closeReady func()        // idempotent ready channel closing
 
 	eventchmux sync.Mutex
 	eventchs   []chan ContainerEvent
@@ -110,13 +110,20 @@ func New(engine engineclient.EngineClient, buggeroff backoff.BackOff) Watcher {
 	if buggeroff == nil {
 		buggeroff = &backoff.StopBackOff{}
 	}
-	return &watcher{
+	ww := &watcher{
 		engine:         engine,
 		buggeroff:      buggeroff,
 		readportfolio:  pf,
 		writeportfolio: pf,
 		ready:          make(chan struct{}),
 	}
+	var closeOnce sync.Once
+	ww.closeReady = func() {
+		closeOnce.Do(func() {
+			close(ww.ready)
+		})
+	}
+	return ww
 }
 
 // Events returns a new (buffered) event channel transmitting container
@@ -434,9 +441,7 @@ func (ww *watcher) list(ctx context.Context) error {
 	// due to the way container engine APIs tend to be designed.
 	alives, err := ww.engine.List(ctx)
 	if err != nil {
-		ww.once.Do(func() {
-			close(ww.ready)
-		})
+		ww.closeReady()
 		return err // list? what list??
 	}
 	// We now lock out any competing container demise events so we can update
@@ -449,9 +454,7 @@ func (ww *watcher) list(ctx context.Context) error {
 		ww.pauses = pendingPauseStates{}
 		ww.listinprogress = false // not strictly necessary here, but anywhere within the gated zone.
 		ww.eventgate.Unlock()
-		ww.once.Do(func() {
-			close(ww.ready)
-		})
+		ww.closeReady()
 	}()
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
