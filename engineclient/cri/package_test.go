@@ -21,8 +21,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const defaultCRIEndpoint = "/run/containerd/containerd.sock" // no "unix://"
-
 func TestCRI(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "engineclient/cri package")
