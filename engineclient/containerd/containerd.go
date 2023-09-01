@@ -20,12 +20,11 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd"
-	events "github.com/containerd/containerd/api/events"
-	tasksv1 "github.com/containerd/containerd/api/services/tasks/v1"
+	"github.com/containerd/containerd/api/events"
+	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/api/types/task"
-	tasktypes "github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/containers"
-	containerdns "github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/typeurl/v2"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
@@ -154,9 +153,9 @@ func (cw *ContainerdWatcher) Close() {
 // containers without any processes.
 func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Container, error) {
 	// As containerd organizes containers (and tasks) into so-called
-	// "namespaces" (argh, yet another kind of "namespace"!) we first need to
+	// "spaces" (argh, yet another kind of "namespace"!) we first need to
 	// iterate them all.
-	namespaces, err := cw.client.NamespaceService().List(ctx)
+	spaces, err := cw.client.NamespaceService().List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +163,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 	containerAPI := cw.client.ContainerService()
 	taskAPI := cw.client.TaskService()
 	containers := []*whalewatcher.Container{}
-	for _, namespace := range namespaces {
+	for _, namespace := range spaces {
 		// Skip Docker's/moby's namespace, as this is managed by the Docker
 		// daemon and we cannot discover all relevant container information at
 		// the containerd level; namely, the container name (as opposed to its
@@ -174,7 +173,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 		}
 		// Prepare namespace'd context for further API calls and then get the
 		// container details.
-		nsctx := containerdns.WithNamespace(ctx, namespace)
+		nsctx := namespaces.WithNamespace(ctx, namespace)
 		// As labels are considered to be a container's configuration as opposed
 		// to a container's state information, we first have to list all
 		// containers and then index their labels.
@@ -187,7 +186,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 			cntrlabels[container.ID] = container.Labels
 		}
 		// Only now can we look for signs of container life...
-		tasks, err := taskAPI.List(nsctx, &tasksv1.ListTasksRequest{})
+		tasks, err := taskAPI.List(nsctx, &tasks.ListTasksRequest{})
 		if err != nil {
 			continue // silently skip this namespace
 		}
@@ -206,12 +205,12 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 // ID of a container.
 func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatcher.Container, error) {
 	namespace, id := decodeDisplayID(nameorid)
-	nsctx := containerdns.WithNamespace(ctx, namespace)
+	nsctx := namespaces.WithNamespace(ctx, namespace)
 	cntr, err := cw.client.ContainerService().Get(nsctx, id)
 	if err != nil {
 		return nil, err
 	}
-	task, err := cw.client.TaskService().Get(nsctx, &tasksv1.GetRequest{ContainerID: id})
+	task, err := cw.client.TaskService().Get(nsctx, &tasks.GetRequest{ContainerID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -234,12 +233,12 @@ func (cw *ContainerdWatcher) Inspect(ctx context.Context, nameorid string) (*wha
 //
 // Note: since containerd features "namespaces", we have to namespace the ID, by
 // prepending the namespace to the ID in case its not the "default" namespace.
-func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]string, task *tasktypes.Process) *whalewatcher.Container {
+func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]string, proc *task.Process) *whalewatcher.Container {
 	paused := false
-	switch task.Status {
-	case tasktypes.Status_RUNNING:
+	switch proc.Status {
+	case task.Status_RUNNING:
 		break
-	case tasktypes.Status_PAUSING, tasktypes.Status_PAUSED:
+	case task.Status_PAUSING, task.Status_PAUSED:
 		paused = true
 	default:
 		return nil
@@ -250,7 +249,7 @@ func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]st
 	// label. If that's present, then we'll happily use it. Slightly differing
 	// from Docker, any name will always be prefixed by a (non-default)
 	// namespace.
-	id := displayID(namespace, task.ID)
+	id := displayID(namespace, proc.ID)
 	name := id
 	if nerdyname, ok := labels[NerdctlNameLabel]; ok {
 		name = displayID(namespace, nerdyname)
@@ -261,7 +260,7 @@ func (cw *ContainerdWatcher) newContainer(namespace string, labels map[string]st
 		ID:      id,
 		Name:    name,
 		Project: projectname,
-		PID:     int(task.Pid),
+		PID:     int(proc.Pid),
 		Labels:  labels,
 		Paused:  paused,
 	}

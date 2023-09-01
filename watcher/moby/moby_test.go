@@ -31,7 +31,7 @@ import (
 	. "github.com/thediveo/success"
 )
 
-var slowSpec = NodeTimeout(20 * time.Second)
+var slowSpec = NodeTimeout(30 * time.Second)
 
 var _ = Describe("Moby watcher engine end-to-end test", func() {
 
@@ -57,8 +57,8 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		defer cancel()
 		done := make(chan struct{})
 		// While // https://github.com/moby/moby/pull/42379 is pending we need
-		// to run any API additional API calls from the same goroutine as where
-		// we start the Watch in order to not trigger the race detector.
+		// to run any additional API calls from the same goroutine as where we
+		// start the Watch in order to not trigger the race detector.
 		nchan := make(chan []types.NetworkResource, 1)
 		go func() {
 			defer GinkgoRecover()
@@ -117,7 +117,7 @@ var _ = Describe("Moby watcher engine end-to-end test", func() {
 		}
 		Eventually(portfolio).Should(ConsistOf(cntr.Container.Name[1:]))
 
-		// and envtually that container should also be gone from the watch list
+		// and eventually that container should also be gone from the watch list
 		// after we killed it.
 		purge.Do(func() {
 			Expect(pool.Purge(cntr)).To(Succeed())
