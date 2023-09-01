@@ -2,6 +2,20 @@
 Package cri implements the CRI API EngineClient. It requires a CRI engine
 supporting the GetContainerEvents API in the CRI RuntimeService.
 
+# Tested CRI API Supporters
+
+The following container engines are covered by the unit tests in this package:
+  - [containerd]
+  - [cri-o] (please see section below)
+
+# CRI-O
+
+Ensure to enable “pod events” in the container engine configuration:
+
+	# /etc/crio/crio.toml
+	[crio.runtime]
+	enable_pod_events=true
+
 # Kubernetes Labels and Annotations
 
 Kubernetes differentiates between non-identifying [annotations] and often
@@ -30,8 +44,8 @@ information:
   - container ID
   - container name
   - containing pod namespace and name (that is, “namespace/name”)
-  - container PID (basically the ealdorman PID) – this actually is a very
-    weak spot in CRI.
+  - container PID (basically the ealdorman PID) – this actually is a very weak
+    spot in CRI.
   - container state – which will always be “running” as there is no “pause”
     notion in Kubernetes/CRI.
 
@@ -99,5 +113,7 @@ extra ContainerStatus API call.
 [CRI API]: https://github.com/kubernetes/cri-api/blob/master/pkg/apis/runtime/v1/api.proto
 [CRI-O issue #1752]: https://github.com/cri-o/cri-o/issues/1752
 [annotations]: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+[containerd]: https://containerd.io
+[cri-o]: https://cri-o.io
 */
 package cri
