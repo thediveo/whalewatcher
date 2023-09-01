@@ -229,7 +229,7 @@ func (cw *CRIWatcher) newContainer(
 
 // LifecycleEvents streams container engine events, limited just to those events
 // in the lifecycle of containers getting born (=alive, as opposed to, say,
-// "conceived") and die.
+// “conceived”) and die.
 func (cw *CRIWatcher) LifecycleEvents(ctx context.Context) (
 	<-chan engineclient.ContainerEvent, <-chan error,
 ) {
