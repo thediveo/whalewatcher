@@ -16,19 +16,18 @@ package containerd
 
 import (
 	"context"
-	"net/http"
+	"fmt"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/api/services/tasks/v1"
-	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/oci"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"github.com/thediveo/whalewatcher/engineclient/containerd/test/ctr"
+	"github.com/thediveo/whalewatcher/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,7 +37,16 @@ import (
 	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
-var slowSpec = NodeTimeout(20 * time.Second)
+const (
+	slowSpec = NodeTimeout(20 * time.Second)
+
+	// name of Docker container with containerd and ctr
+	kindischName = "kindisch-ww-containerd"
+
+	testNamespace     = "whalewatcher-testing"
+	testContainerName = "buzzybocks"
+	testImageRef      = "docker.io/library/busybox:latest"
+)
 
 type packer struct{}
 
@@ -53,297 +61,173 @@ func (p *packer) Pack(container *whalewatcher.Container, inspection interface{})
 	container.Rucksack = &details
 }
 
-var _ = Describe("containerd engineclient", func() {
+var _ = Describe("containerd engineclient", Ordered, func() {
 
-	BeforeEach(func() {
-		goodfds := Filedescriptors()
-		DeferCleanup(func() {
-			Eventually(Goroutines).Within(2 * time.Second).ProbeEvery(250 * time.Millisecond).
-				ShouldNot(HaveLeaked())
-			Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
+	Context("display ID translations", func() {
+
+		It("generates container display IDs", func() {
+			Expect(displayID("default", "foo")).To(Equal("foo"))
+			Expect(displayID("rumpelpumpel", "foo")).To(Equal("rumpelpumpel/foo"))
 		})
+
+		It("regenerates container and namespace information from display IDs", func() {
+			ns, id := decodeDisplayID("foo")
+			Expect(ns).To(Equal("default"))
+			Expect(id).To(Equal("foo"))
+
+			ns, id = decodeDisplayID("rumpelpumpel/foo")
+			Expect(ns).To(Equal("rumpelpumpel"))
+			Expect(id).To(Equal("foo"))
+		})
+
 	})
 
-	It("containerd client doesn't leak goroutines", func(ctx context.Context) {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
-		cdclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		Expect(cdclient.Server(ctx)).Error().NotTo(HaveOccurred())
-		defer cdclient.Close()
-	})
+	Context("using real engine", func() {
 
-	It("has engine ID and version", func(ctx context.Context) {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
-		cwclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		cw := NewContainerdWatcher(cwclient, WithPID(123456))
-		Expect(cw).NotTo(BeNil())
-		defer cw.Close()
+		var endpointPath string
+		var providerCntr *dockertest.Resource
 
-		Expect(cw.PID()).To(Equal(123456))
-		Expect(cw.ID(ctx)).NotTo(BeEmpty())
-		Expect(cw.Version(ctx)).NotTo(BeEmpty())
-	})
-
-	It("survives cancelled contexts", func(ctx context.Context) {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
-		cwclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		cw := NewContainerdWatcher(cwclient)
-		Expect(cw).NotTo(BeNil())
-		defer cw.Close()
-
-		ctx, cancel := context.WithCancel(ctx)
-		cancel() // immediately cancel it to check error handling
-
-		Expect(cw.List(ctx)).Error().To(HaveOccurred())
-
-		Expect(cw.Inspect(ctx, "never_ever_existing_foobar")).Error().To(HaveOccurred())
-	})
-
-	It("generates container display IDs", func() {
-		Expect(displayID("default", "foo")).To(Equal("foo"))
-		Expect(displayID("rumpelpumpel", "foo")).To(Equal("rumpelpumpel/foo"))
-	})
-
-	It("regenerates container and namespace information from display IDs", func() {
-		ns, id := decodeDisplayID("foo")
-		Expect(ns).To(Equal("default"))
-		Expect(id).To(Equal("foo"))
-
-		ns, id = decodeDisplayID("rumpelpumpel/foo")
-		Expect(ns).To(Equal("rumpelpumpel"))
-		Expect(id).To(Equal("foo"))
-	})
-
-	It("sets a rucksack packer", func() {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
-		cwclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		p := packer{}
-		cw := NewContainerdWatcher(cwclient, WithRucksackPacker(&p))
-		Expect(cw).NotTo(BeNil())
-		defer cw.Close()
-		Expect(cw.packer).To(BeIdenticalTo(&p))
-	})
-
-	It("returns the underlying client", func() {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
-		cwclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		cw := NewContainerdWatcher(cwclient)
-		Expect(cw).NotTo(BeNil())
-		defer cw.Close()
-		Expect(cw.Client()).To(BeIdenticalTo(cw.client))
-	})
-
-	It("watches...", Serial, slowSpec, func(ctx context.Context) {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
-
-		const bibi = "buzzybocks"
-		const testns = "whalewatcher-testing"
-
-		By("watching containerd engine")
-		cwclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		cw := NewContainerdWatcher(cwclient)
-		Expect(cw).NotTo(BeNil())
-		defer cw.Close()
-
-		Expect(cw.Type()).To(Equal(Type))
-		Expect(cw.API()).NotTo(BeEmpty())
-
-		ctx, cancel := context.WithCancel(ctx)
-		evs, errs := cw.LifecycleEvents(ctx)
-
-		// https://containerd.io/docs/getting-started
-		cdclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		defer cdclient.Close()
-		wwctx := namespaces.WithNamespace(ctx, testns)
-
-		// Clean up any trash left from a previously crashed/panic'ed unit
-		// test...
-		_, _ = cdclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: bibi})
-		_ = cdclient.ContainerService().Delete(wwctx, bibi)
-		_ = cdclient.SnapshotService("").Remove(wwctx, bibi+"-snapshot")
-
-		By("pulling a busybox image (if not already available locally)")
-		// OUCH! the default resolver keeps a persistent client around, so this
-		// triggers the goroutine leak detection. Thus, we need to explicitly
-		// supply our own (default) client, which we have control over. In
-		// particular, we can close its idle connections at the end of the test,
-		// getting rid of idling persistent connections. Sigh.
-		httpclnt := &http.Client{}
-		busyboximg := Successful(cdclient.Pull(wwctx,
-			"docker.io/library/busybox:latest",
-			containerd.WithPullUnpack,
-			containerd.WithResolver(docker.NewResolver(docker.ResolverOptions{
-				Client: httpclnt,
-			}))))
-		defer httpclnt.CloseIdleConnections()
-
-		By("creating a new container/task and starting it")
-		// Run a pausing test container by creating container+task, and finally
-		// starting the task.
-		buzzybocks := Successful(cdclient.NewContainer(wwctx,
-			bibi,
-			containerd.WithNewSnapshot(bibi+"-snapshot", busyboximg),
-			containerd.WithNewSpec(oci.WithImageConfigArgs(busyboximg,
-				[]string{"/bin/sleep", "30s"})),
-			containerd.WithAdditionalContainerLabels(map[string]string{
-				"foo":            "bar",
-				NerdctlNameLabel: "rappelfatz",
-			})))
-		defer func() {
-			_ = buzzybocks.Delete(wwctx, containerd.WithSnapshotCleanup)
-		}()
-		buzzybockstask := Successful(buzzybocks.NewTask(wwctx, cio.NewCreator()))
-		defer func() {
-			_, _ = buzzybockstask.Delete(wwctx, containerd.WithProcessKill)
-		}()
-		Expect(buzzybockstask.Start(wwctx)).To(Succeed())
-
-		By("receiving the newly started container/task event")
-		Eventually(evs).Should(Receive(And(
-			HaveEventType(engineclient.ContainerStarted),
-			HaveID(testns+"/"+bibi),
-		)))
-
-		By("listing the newly started container/task")
-		// The container/task should also be listed...
-		containers := Successful(cw.List(wwctx))
-		Expect(containers).To(ContainElement(HaveValue(And(
-			HaveID(testns+"/"+bibi),
-			HaveName(testns+"/rappelfatz"),
-		))))
-
-		By("getting details of the newly started container/task")
-		// ...and we should be able to query its details.
-		defer func() { cw.packer = nil }()
-		cw.packer = &packer{}
-		container := Successful(cw.Inspect(wwctx, testns+"/"+bibi))
-		Expect(container).To(HaveValue(And(
-			HaveID(testns+"/"+bibi),
-			HaveName(testns+"/rappelfatz"),
-		)))
-		Expect(container.Rucksack).NotTo(BeNil())
-
-		By("pausing container/task")
-		// pause...
-		Expect(buzzybockstask.Pause(wwctx)).To(Succeed())
-		Eventually(evs).Should(Receive(And(
-			HaveEventType(engineclient.ContainerPaused),
-			HaveID(testns+"/"+bibi),
-		)))
-		c := Successful(cw.Inspect(wwctx, testns+"/"+bibi))
-		Expect(c.Paused).To(BeTrue())
-
-		By("unpausing container/task")
-		// ...and unpause it.
-		Expect(buzzybockstask.Resume(wwctx)).To(Succeed())
-		Eventually(evs).Should(Receive(And(
-			HaveEventType(engineclient.ContainerUnpaused),
-			HaveID(testns+"/"+bibi),
-		)))
-		c = Successful(cw.Inspect(wwctx, testns+"/"+bibi))
-		Expect(c.Paused).To(BeFalse())
-
-		By("deleting container/task")
-		// Get rid of the task.
-		Expect(buzzybockstask.Delete(wwctx, containerd.WithProcessKill)).Error().NotTo(HaveOccurred())
-
-		By("receiving container/task exit event")
-		// We should see or have seen the corresponding task exit event...
-		Eventually(evs).Should(Receive(And(
-			HaveEventType(engineclient.ContainerExited),
-			HaveID(testns+"/"+bibi),
-		)))
-
-		By("closing down the event stream")
-		// Shut down the engine event stream and make sure that it closes the
-		// error stream properly to signal its end...
-		cancel()
-		Eventually(errs).Should(BeClosed())
-	})
-
-	It("returns nil for a task-less container", func(ctx context.Context) {
-		if os.Getegid() != 0 {
-			Skip("needs root")
-		}
-
-		const bibi = "buzzybocks"
-		const testns = "whalewatcher-testing"
-
-		By("watching containerd engine")
-		cwclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		cw := NewContainerdWatcher(cwclient)
-		Expect(cw).NotTo(BeNil())
-		defer cw.Close()
-
-		// https://containerd.io/docs/getting-started
-		cdclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-		defer cdclient.Close()
-		wwctx := namespaces.WithNamespace(ctx, testns)
-
-		// Clean up any trash left from a previously crashed/panic'ed unit
-		// test...
-		_ = cdclient.ContainerService().Delete(wwctx, bibi)
-		_ = cdclient.SnapshotService("").Remove(wwctx, bibi+"-snapshot")
-
-		By("pulling a busybox image (if not already available locally)")
-		// OUCH! the default resolver keeps a persistent client around, so this
-		// triggers the goroutine leak detection. Thus, we need to explicitly
-		// supply our own (default) client, which we have control over. In
-		// particular, we can close its idle connections at the end of the test,
-		// getting rid of idling persistent connections. Sigh.
-		httpclnt := &http.Client{}
-		busyboximg := Successful(cdclient.Pull(wwctx,
-			"docker.io/library/busybox:latest",
-			containerd.WithPullUnpack,
-			containerd.WithResolver(docker.NewResolver(docker.ResolverOptions{
-				Client: httpclnt,
-			}))))
-		defer httpclnt.CloseIdleConnections()
-
-		By("creating a new container, but not starting it")
-		// Run a pausing test container by creating container+task, and finally
-		// starting the task.
-		buzzybocks := Successful(cdclient.NewContainer(wwctx,
-			bibi,
-			containerd.WithNewSnapshot(bibi+"-snapshot", busyboximg),
-			containerd.WithNewSpec(oci.WithImageConfigArgs(busyboximg,
-				[]string{"/bin/sleep", "30s"})),
-			containerd.WithAdditionalContainerLabels(map[string]string{
-				"foo":            "bar",
-				NerdctlNameLabel: "rappelfatz",
-			})))
-		defer func() {
-			_ = buzzybocks.Delete(wwctx, containerd.WithSnapshotCleanup)
-		}()
-
-		Expect(cw.Inspect(wwctx, testns+"/"+buzzybocks.ID())).Error().
-			To(MatchError(MatchRegexp(`task .* not found`)))
-	})
-
-	Context("dynamic container workload", Serial, Ordered, func() {
-
-		It("ignores Docker containers at containerd level", slowSpec, func(ctx context.Context) {
-			if os.Getegid() != 0 {
+		BeforeAll(func(ctx context.Context) {
+			if os.Getuid() != 0 {
 				Skip("needs root")
 			}
 
-			const mobyns = "moby"
-			const momo = "morbid_moby"
+			// Make sure to also leak-check the overall setup and teardown and
+			// not just the individual tests. In particular, this also checks
+			// that the containerd client doesn't leak go routines.
+			goodfds := Filedescriptors()
+			DeferCleanup(func() {
+				Eventually(Goroutines).Within(2 * time.Second).ProbeEvery(250 * time.Millisecond).
+					ShouldNot(HaveLeaked())
+				Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
+			})
 
+			By("spinning up a Docker container with stand-alone containerd, courtesy of the KinD k8s sig")
+			pool := Successful(dockertest.NewPool("unix:///var/run/docker.sock"))
+			_ = pool.RemoveContainerByName(kindischName)
+			// The necessary container start arguments come from KinD's Docker node
+			// provisioner, see:
+			// https://github.com/kubernetes-sigs/kind/blob/3610f606516ccaa88aa098465d8c13af70937050/pkg/cluster/internal/providers/docker/provision.go#L133
+			//
+			// Please note that --privileged already implies switching off AppArmor.
+			//
+			// Please note further, that currently some Docker client CLI flags
+			// don't translate into dockertest-supported options.
+			//
+			// docker run -it --rm --name kindisch-...
+			//   --privileged
+			//   --cgroupns=private
+			//   --init=false
+			//   --volume /dev/mapper:/dev/mapper
+			//   --device /dev/fuse
+			//   --tmpfs /tmp
+			//   --tmpfs /run
+			//   --volume /var
+			//   --volume /lib/modules:/lib/modules:ro
+			//   kindisch-...
+			providerCntr = Successful(pool.BuildAndRunWithBuildOptions(
+				&dockertest.BuildOptions{
+					ContextDir: "./test/kindisch", // sorry, couldn't resist the pun.
+					Dockerfile: "Dockerfile",
+					BuildArgs: []docker.BuildArg{
+						{Name: "KINDEST_BASE_TAG", Value: test.KindestBaseImageTag},
+					},
+				},
+				&dockertest.RunOptions{
+					Name:       kindischName,
+					Privileged: true,
+					Mounts: []string{
+						"/dev/mapper:/dev/mapper",
+						"/var",
+						"/lib/modules:/lib/modules:ro",
+					},
+					Tty: true,
+				}, func(hc *docker.HostConfig) {
+					hc.Init = false
+					hc.Tmpfs = map[string]string{
+						"/tmp": "",
+						"/run": "",
+					}
+					hc.Devices = []docker.Device{
+						{PathOnHost: "/dev/fuse"},
+					}
+				}))
+			DeferCleanup(func() {
+				By("removing the containerd Docker container")
+				Expect(pool.Purge(providerCntr)).To(Succeed())
+			})
+
+			By("waiting for containerized containerd to become responsive")
+			Expect(providerCntr.Container.State.Pid).NotTo(BeZero())
+			// apipath must not include absolute symbolic links, but already be
+			// properly resolved.
+			endpointPath = fmt.Sprintf("/proc/%d/root%s",
+				providerCntr.Container.State.Pid, "/run/containerd/containerd.sock")
+			var cdclient *containerd.Client
+			Eventually(func() error {
+				var err error
+				cdclient, err = containerd.New(endpointPath,
+					containerd.WithTimeout(5*time.Second))
+				return err
+			}).Within(30*time.Second).ProbeEvery(1*time.Second).
+				Should(Succeed(), "containerd API never became responsive")
+			cdclient.Close() // not needed anymore, will create fresh ones over and over again
+		})
+
+		var cdclient *containerd.Client
+
+		BeforeEach(func() {
+			goodfds := Filedescriptors()
+			DeferCleanup(func() {
+				Eventually(Goroutines).Within(2 * time.Second).ProbeEvery(250 * time.Millisecond).
+					ShouldNot(HaveLeaked())
+				Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
+			})
+
+			cdclient = Successful(containerd.New(endpointPath,
+				containerd.WithTimeout(5*time.Second)))
+		})
+
+		It("has engine ID and version", func(ctx context.Context) {
+			cw := NewContainerdWatcher(cdclient, WithPID(123456))
+			Expect(cw).NotTo(BeNil())
+			defer cw.Close()
+
+			Expect(cw.PID()).To(Equal(123456))
+			Expect(cw.ID(ctx)).NotTo(BeEmpty())
+			Expect(cw.Version(ctx)).NotTo(BeEmpty())
+		})
+
+		It("correctly handles cancelled contexts", func(ctx context.Context) {
+			cw := NewContainerdWatcher(cdclient)
+			Expect(cw).NotTo(BeNil())
+			defer cw.Close()
+
+			ctx, cancel := context.WithCancel(ctx)
+			cancel() // immediately cancel it to check error handling
+
+			Expect(cw.List(ctx)).Error().To(HaveOccurred())
+			Expect(cw.Inspect(ctx, "never_ever_existing_foobar")).Error().To(HaveOccurred())
+		})
+
+		It("sets a rucksack packer", func() {
+			p := packer{}
+			cw := NewContainerdWatcher(cdclient, WithRucksackPacker(&p))
+			Expect(cw).NotTo(BeNil())
+			defer cw.Close()
+			Expect(cw.packer).To(BeIdenticalTo(&p))
+		})
+
+		It("returns the underlying client", func() {
+			cw := NewContainerdWatcher(cdclient)
+			Expect(cw).NotTo(BeNil())
+			defer cw.Close()
+			Expect(cw.Client()).To(BeIdenticalTo(cw.client))
+		})
+
+		It("watches the container workload...", slowSpec, func(ctx context.Context) {
 			By("watching containerd engine")
-			cwclient := Successful(containerd.New("/run/containerd/containerd.sock"))
-			cw := NewContainerdWatcher(cwclient)
+			cw := NewContainerdWatcher(cdclient)
 			Expect(cw).NotTo(BeNil())
 			defer cw.Close()
 
@@ -353,74 +237,208 @@ var _ = Describe("containerd engineclient", func() {
 			ctx, cancel := context.WithCancel(ctx)
 			evs, errs := cw.LifecycleEvents(ctx)
 
-			wwctx := namespaces.WithNamespace(ctx, mobyns)
+			// https://containerd.io/docs/getting-started
+			wwctx := namespaces.WithNamespace(ctx, testNamespace)
 
-			// Clean up any trash left from a previously crashed/panic'ed unit
-			// test...
-			_, _ = cwclient.TaskService().Delete(wwctx, &tasks.DeleteTaskRequest{ContainerID: momo})
-			_ = cwclient.ContainerService().Delete(wwctx, momo)
-			_ = cwclient.SnapshotService("").Remove(wwctx, momo+"-snapshot")
+			By("pulling a busybox image (if necessary)")
+			ctr.Successfully(providerCntr,
+				"-n", testNamespace,
+				"image", "pull", testImageRef)
 
-			By("pulling a busybox image (if not already available locally)")
-			// OUCH! the default resolver keeps a persistent client around, so this
-			// triggers the goroutine leak detection. Thus, we need to explicitly
-			// supply our own (default) client, which we have control over. In
-			// particular, we can close its idle connections at the end of the test,
-			// getting rid of idling persistent connections. Sigh.
-			httpclnt := &http.Client{}
-			busyboximg := Successful(cwclient.Pull(wwctx,
-				"docker.io/library/busybox:latest",
-				containerd.WithPullUnpack,
-				containerd.WithResolver(docker.NewResolver(docker.ResolverOptions{
-					Client: httpclnt,
-				}))))
-			defer httpclnt.CloseIdleConnections()
+			By("creating a new container+task and starting it")
+			ctr.Successfully(providerCntr,
+				"-n", testNamespace,
+				"run", "-d",
+				"--label", "foo=bar",
+				"--label", NerdctlNameLabel+"=rappelfatz",
+				testImageRef,
+				testContainerName,
+				"/bin/sleep", "30s")
+			DeferCleanup(func() {
+				_ = ctr.Exec(providerCntr,
+					"-n", testNamespace,
+					"task", "rm", "-f", testContainerName)
+				_ = ctr.Exec(providerCntr,
+					"-n", testNamespace,
+					"container", "rm", testContainerName)
+			})
 
-			By("creating a new container/task and starting it")
-			// Run a test container by creating container+task
-			morbidmoby := Successful(cwclient.NewContainer(wwctx,
-				momo,
-				containerd.WithNewSnapshot(momo+"-snapshot", busyboximg),
-				containerd.WithNewSpec(oci.WithImageConfigArgs(busyboximg,
-					[]string{"/bin/sleep", "30s"}))))
-			defer func() {
-				_ = morbidmoby.Delete(wwctx, containerd.WithSnapshotCleanup)
-			}()
-			morbidmobystask := Successful(morbidmoby.NewTask(wwctx, cio.NewCreator()))
-			defer func() {
-				_, _ = morbidmobystask.Delete(wwctx, containerd.WithProcessKill)
-			}()
-			Expect(morbidmobystask.Start(wwctx)).To(Succeed())
+			By("receiving the newly started container/task event")
+			Eventually(evs).Should(Receive(And(
+				HaveEventType(engineclient.ContainerStarted),
+				HaveID(testNamespace+"/"+testContainerName),
+			)))
 
-			// We should never see any event for Docker-originating containers.
-			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
+			By("listing the newly started container/task")
+			// The container/task should also be listed...
+			containers := Successful(cw.List(wwctx))
+			Expect(containers).To(ContainElement(HaveValue(And(
+				HaveID(testNamespace+"/"+testContainerName),
+				HaveName(testNamespace+"/rappelfatz"),
+			))))
 
-			By("not seeing the newly started container/task in moby namespace")
-			// We must not see this started container, as it is in the blocked
-			// "moby" namespace.
-			cntrs := Successful(cw.List(ctx))
-			Expect(cntrs).NotTo(ContainElement(HaveValue(HaveID(mobyns + "/" + momo))))
+			By("getting details of the newly started container/task")
+			// ...and we should be able to query its details.
+			defer func() { cw.packer = nil }()
+			cw.packer = &packer{}
+			container := Successful(cw.Inspect(wwctx, testNamespace+"/"+testContainerName))
+			Expect(container).To(HaveValue(And(
+				HaveID(testNamespace+"/"+testContainerName),
+				HaveName(testNamespace+"/rappelfatz"),
+			)))
+			Expect(container.Rucksack).NotTo(BeNil())
 
-			By("stopping container/task")
-			Expect(morbidmobystask.Kill(wwctx, syscall.SIGKILL)).Error().NotTo(HaveOccurred())
-			Eventually(func() error {
-				_, err := cw.Inspect(wwctx, mobyns+"/"+momo)
-				return err
-			}).Should(MatchError(MatchRegexp(`container .* has no initial process`)))
+			By("pausing container/task")
+			ctr.Successfully(providerCntr,
+				"-n", testNamespace,
+				"task", "pause", testContainerName)
+			Eventually(evs).Should(Receive(And(
+				HaveEventType(engineclient.ContainerPaused),
+				HaveID(testNamespace+"/"+testContainerName),
+			)))
+			c := Successful(cw.Inspect(wwctx, testNamespace+"/"+testContainerName))
+			Expect(c.Paused).To(BeTrue())
+
+			By("unpausing container/task")
+			ctr.Successfully(providerCntr,
+				"-n", testNamespace,
+				"task", "resume", testContainerName)
+			Eventually(evs).Should(Receive(And(
+				HaveEventType(engineclient.ContainerUnpaused),
+				HaveID(testNamespace+"/"+testContainerName),
+			)))
+			c = Successful(cw.Inspect(wwctx, testNamespace+"/"+testContainerName))
+			Expect(c.Paused).To(BeFalse())
 
 			By("deleting container/task")
-			// Get rid of the task.
-			Expect(morbidmobystask.Delete(wwctx, containerd.WithProcessKill)).Error().NotTo(HaveOccurred())
+			ctr.Successfully(providerCntr,
+				"-n", testNamespace,
+				"task", "rm", "-f", testContainerName)
 
-			By("not receiving container/task any exit event")
+			By("receiving container/task exit event")
 			// We should see or have seen the corresponding task exit event...
-			Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
+			Eventually(evs).Should(Receive(And(
+				HaveEventType(engineclient.ContainerExited),
+				HaveID(testNamespace+"/"+testContainerName),
+			)))
 
 			By("closing down the event stream")
 			// Shut down the engine event stream and make sure that it closes the
 			// error stream properly to signal its end...
 			cancel()
 			Eventually(errs).Should(BeClosed())
+		})
+
+		It("returns nil for a task-less container", func(ctx context.Context) {
+			By("watching containerd engine")
+			cw := NewContainerdWatcher(cdclient)
+			Expect(cw).NotTo(BeNil())
+			defer cw.Close()
+
+			// https://containerd.io/docs/getting-started
+			wwctx := namespaces.WithNamespace(ctx, testNamespace)
+
+			By("pulling a busybox image (if necessary)")
+			ctr.Successfully(providerCntr,
+				"-n", testNamespace,
+				"image", "pull", testImageRef)
+
+			By("creating a new container, but not starting it")
+			ctr.Successfully(providerCntr,
+				"-n", testNamespace,
+				"container", "create",
+				"--label", "foo=bar",
+				"--label", NerdctlNameLabel+"=rappelfatz",
+				testImageRef,
+				testContainerName,
+				"/bin/sleep", "30s")
+
+			DeferCleanup(func() {
+				_ = ctr.Exec(providerCntr,
+					"-n", testNamespace,
+					"container", "rm", testContainerName)
+			})
+
+			Expect(cw.Inspect(wwctx, testNamespace+"/"+testContainerName)).Error().
+				To(MatchError(MatchRegexp(`task .* not found`)))
+		})
+
+		Context("dynamic container workload", func() {
+
+			It("ignores Docker containers at containerd level", func(ctx context.Context) {
+				const mobyns = "moby"
+				const momo = "morbid_moby"
+
+				By("watching containerd engine")
+				cw := NewContainerdWatcher(cdclient)
+				Expect(cw).NotTo(BeNil())
+				defer cw.Close()
+
+				Expect(cw.Type()).To(Equal(Type))
+				Expect(cw.API()).NotTo(BeEmpty())
+
+				ctx, cancel := context.WithCancel(ctx)
+				evs, errs := cw.LifecycleEvents(ctx)
+
+				wwctx := namespaces.WithNamespace(ctx, mobyns)
+
+				By("pulling a busybox image (if not already available locally)")
+				ctr.Successfully(providerCntr,
+					"-n", mobyns,
+					"image", "pull", testImageRef)
+
+				By("creating a new container+task and starting it")
+				ctr.Successfully(providerCntr,
+					"-n", mobyns,
+					"run", "-d",
+					"--label", "foo=bar",
+					"--label", NerdctlNameLabel+"=rappelfatz",
+					testImageRef,
+					testContainerName,
+					"/bin/sleep", "30s")
+				DeferCleanup(func() {
+					_ = ctr.Exec(providerCntr,
+						"-n", mobyns,
+						"task", "rm", "-f", testContainerName)
+					_ = ctr.Exec(providerCntr,
+						"-n", mobyns,
+						"container", "rm", testContainerName)
+				})
+
+				// We should never see any event for Docker-originating containers.
+				Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
+
+				By("not seeing the newly started container/task in moby namespace")
+				// We must not see this started container, as it is in the blocked
+				// "moby" namespace.
+				cntrs := Successful(cw.List(ctx))
+				Expect(cntrs).NotTo(ContainElement(HaveValue(HaveID(mobyns + "/" + momo))))
+
+				By("stopping container/task")
+				ctr.Successfully(providerCntr,
+					"-n", mobyns,
+					"task", "kill", "--signal", "9", testContainerName)
+				Eventually(func() error {
+					_, err := cw.Inspect(wwctx, mobyns+"/"+momo)
+					return err
+				}).Should(MatchError(MatchRegexp(`container .*: not found`)))
+
+				By("deleting container/task")
+				ctr.Successfully(providerCntr,
+					"-n", mobyns,
+					"task", "rm", "-f", testContainerName)
+
+				By("not receiving container/task any exit event")
+				// We should see or have seen the corresponding task exit event...
+				Eventually(evs).ShouldNot(Receive(HaveID(mobyns + "/" + momo)))
+
+				By("closing down the event stream")
+				// Shut down the engine event stream and make sure that it closes the
+				// error stream properly to signal its end...
+				cancel()
+				Eventually(errs).Should(BeClosed())
+			})
+
 		})
 
 	})

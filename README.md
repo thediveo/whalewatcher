@@ -5,7 +5,7 @@
 ![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)
 ![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
-![Coverage](https://img.shields.io/badge/Coverage-90.7%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-87.5%25-brightgreen)
 
 🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
 the tedious task of constantly monitoring "alive" container workloads: no need
@@ -48,17 +48,11 @@ synchronized to the container engine state.
   [`whalewatcher.Container`](https://pkg.go.dev/github.com/thediveo/whalewatcher#Container)
   type for details.
 - supports different container engines:
-  - [Docker/Moby](https://github.com/moby/moby)
-  - plain [containerd](https://github.com/containerd/containerd)
-  - in the future, when [cri-o/cri-o issue 5609, _[RFE] Event API for container
-    lifecycle events_](https://github.com/cri-o/cri-o/issues/5609) hopefully
-    will be implemented, [cri-o](https://cri-o.io/) can be supported some day
-    too.
-  - for Podman support please see the separate
-    [sealwatcher](https://github.com/thediveo/sealwatcher) module. (Sealwatcher
-    is a separate module due to its many dev headers and libraries dependencies
-    which actually aren't needed for Podman REST API clients, but still have to
-    be installed.)
+  - [Docker/Moby](https://github.com/moby/moby).
+  - plain [containerd](https://github.com/containerd/containerd).
+  - [cri-o](https://cri-o.io/) and [containerd](https://github.com/containerd/containerd) via the generic CRI pod event API.
+  - Podman: use the Docker/Moby watcher. Due to several severe issues we're not
+    supporting Podman's own API and have archived the sealwatcher _experiment_. More background information can be found in [alias podman=p.o.'d.man](http://thediveo.github.io/#/art/podman).
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
   - [nerdctl](https://github.com/containerd/nerdctl)
