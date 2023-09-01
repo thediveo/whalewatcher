@@ -170,19 +170,19 @@ var _ = Describe("CRI API", Ordered, func() {
 					Uid:       uuid.NewString(),
 				},
 			}
-			podr := Successful(cricl.rtcl.RunPodSandbox(ctx, &rtv1.RunPodSandboxRequest{
+			podsbox := Successful(cricl.rtcl.RunPodSandbox(ctx, &rtv1.RunPodSandboxRequest{
 				Config: podconfig,
 			}))
 			defer func() {
 				By("removing the pod")
 				Expect(cricl.rtcl.RemovePodSandbox(ctx, &rtv1.RemovePodSandboxRequest{
-					PodSandboxId: podr.PodSandboxId,
+					PodSandboxId: podsbox.PodSandboxId,
 				})).Error().NotTo(HaveOccurred())
 			}()
 
 			By("creating a container inside the pod")
 			podcntr := Successful(cricl.rtcl.CreateContainer(ctx, &rtv1.CreateContainerRequest{
-				PodSandboxId: podr.PodSandboxId,
+				PodSandboxId: podsbox.PodSandboxId,
 				Config: &rtv1.ContainerConfig{
 					Metadata: &rtv1.ContainerMetadata{
 						Name: "hellorld",
@@ -207,7 +207,7 @@ var _ = Describe("CRI API", Ordered, func() {
 			defer func() {
 				By("removing the container")
 				Expect(cricl.rtcl.RemoveContainer(ctx, &rtv1.RemoveContainerRequest{
-					ContainerId: podr.PodSandboxId,
+					ContainerId: podcntr.ContainerId,
 				})).Error().NotTo(HaveOccurred())
 			}()
 
