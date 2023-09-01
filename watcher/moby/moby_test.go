@@ -33,7 +33,7 @@ import (
 
 var slowSpec = NodeTimeout(30 * time.Second)
 
-var _ = Describe("Moby watcher engine end-to-end test", func() {
+var _ = Describe("Moby engine watcher end-to-end test", func() {
 
 	BeforeEach(func() {
 		goodfds := Filedescriptors()

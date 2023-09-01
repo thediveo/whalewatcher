@@ -86,7 +86,7 @@ func WithPID(pid int) NewOption {
 
 // WithRucksackPacker sets the Rucksack packer that adds application-specific
 // container information based on the inspected container data. The specified
-// Rucksack packer gets passed the inspection data in form of a
+// Rucksack packer gets passed the inspection data in form of
 // InspectionDetails.
 func WithRucksackPacker(packer engineclient.RucksackPacker) NewOption {
 	return func(cw *CRIWatcher) {
@@ -95,10 +95,12 @@ func WithRucksackPacker(packer engineclient.RucksackPacker) NewOption {
 }
 
 // ID returns the (more or less) unique engine identifier; the exact format is
-// engine-specific.
+// engine-specific. Unfortunately, the CRI API doesn't has any concept or notion
+// of individual “engine identification”. We thus synthesize one from the host
+// name, going down the rabit hole of UTS and mount namespaces...
 func (cw *CRIWatcher) ID(ctx context.Context) string {
 	// CRI doesn't (directly) support container engine identifications.
-	return ""
+	return hostname(cw.pid)
 }
 
 // Type returns the type identifier for this container engine.
@@ -257,9 +259,11 @@ func (cw *CRIWatcher) LifecycleEvents(ctx context.Context) (
 				cntrerrstream <- err
 				return
 			}
-			// At least in the case of containerd, the sandbox lifcycle also
-			// emits container events with their ContainerId equal to the
-			// PodSandboxStatus.Id. Please see also:
+			// At least in the cases of containerd and cri-o, the sandbox
+			// lifcycle also emits container events with their ContainerId equal
+			// to the PodSandboxStatus.Id.
+			//
+			// In case of containerd, please see the code here:
 			// https://github.com/containerd/containerd/blob/4d2c8879908285454a4006534cb0af82bb58a406/pkg/cri/server/sandbox_run.go#L506
 			switch ev.ContainerEventType {
 			case runtime.ContainerEventType_CONTAINER_STARTED_EVENT:

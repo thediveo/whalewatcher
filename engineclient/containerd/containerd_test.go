@@ -17,6 +17,7 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/engineclient/containerd/test/ctr"
+	"github.com/thediveo/whalewatcher/engineclient/containerd/test/img"
 	"github.com/thediveo/whalewatcher/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -41,7 +43,7 @@ const (
 	slowSpec = NodeTimeout(20 * time.Second)
 
 	// name of Docker container with containerd and ctr
-	kindischName = "kindisch-ww-containerd"
+	kindischName = "ww-engineclient-containerd"
 
 	testNamespace     = "whalewatcher-testing"
 	testContainerName = "buzzybocks"
@@ -125,20 +127,23 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			//   --volume /var
 			//   --volume /lib/modules:/lib/modules:ro
 			//   kindisch-...
-			providerCntr = Successful(pool.BuildAndRunWithBuildOptions(
-				&dockertest.BuildOptions{
-					ContextDir: "./test/kindisch", // sorry, couldn't resist the pun.
-					Dockerfile: "Dockerfile",
-					BuildArgs: []docker.BuildArg{
-						{Name: "KINDEST_BASE_TAG", Value: test.KindestBaseImageTag},
-					},
+			Expect(pool.Client.BuildImage(docker.BuildImageOptions{
+				Name:       img.Name,
+				ContextDir: "./test/_kindisch", // sorry, couldn't resist the pun.
+				Dockerfile: "Dockerfile",
+				BuildArgs: []docker.BuildArg{
+					{Name: "KINDEST_BASE_TAG", Value: test.KindestBaseImageTag},
 				},
+				OutputStream: io.Discard,
+			})).To(Succeed())
+			providerCntr = Successful(pool.RunWithOptions(
 				&dockertest.RunOptions{
 					Name:       kindischName,
+					Repository: img.Name,
 					Privileged: true,
 					Mounts: []string{
+						"/var", // well, this actually is an unnamed volume
 						"/dev/mapper:/dev/mapper",
-						"/var",
 						"/lib/modules:/lib/modules:ro",
 					},
 					Tty: true,
