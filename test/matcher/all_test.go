@@ -1,4 +1,4 @@
-// Copyright 2022 Harald Albrecht.
+// Copyright 2023 Harald Albrecht.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,26 +15,30 @@
 package matcher
 
 import (
-	"github.com/thediveo/whalewatcher/engineclient"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("BeAContainerEvent matcher", func() {
+var _ = Describe("All matcher", func() {
 
-	It("matches", func() {
-		cev := engineclient.ContainerEvent{
-			Type:    engineclient.ContainerStarted,
-			ID:      "ID42",
-			Project: "P",
+	It("succeeds for correct set of actuals", func() {
+		actuals := []int{3, 42, 1}
+		m := All(Equal(1), Equal(42), Equal(3))
+		for idx, actual := range actuals {
+			success, err := m.Match(actual)
+			Expect(err).NotTo(HaveOccurred())
+			if idx == len(actuals)-1 {
+				Expect(success).To(BeTrue())
+			} else {
+				Expect(success).To(BeFalse())
+			}
 		}
-		Expect(cev).To(BeAContainerEvent(HaveID("ID42"), HaveEventType(engineclient.ContainerStarted)))
-		Expect(cev).NotTo(BeAContainerEvent(HaveID("ID42"), HaveEventType(engineclient.ContainerExited)))
 	})
 
-	It("properly fails for an unexpected type of actual", func() {
-		Expect(BeAContainerEvent(HaveID("ID42")).Match("foo")).Error().To(HaveOccurred())
+	It("errors for non-matching actual", func() {
+		m := All(Equal(1), Equal(42), Equal(3))
+		Expect(m.Match(3)).Error().NotTo(HaveOccurred())
+		Expect(m.Match(666)).Error().To(HaveOccurred())
 	})
 
 })

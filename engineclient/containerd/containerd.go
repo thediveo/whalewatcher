@@ -66,7 +66,7 @@ type ContainerdWatcher struct {
 	packer engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
 }
 
-// NewContainerdWatcher returns a new ontainerdWatcher using the specified
+// NewContainerdWatcher returns a new ContainerdWatcher using the specified
 // containerd engine client; normally, you would want to use this lower-level
 // constructor only in unit tests.
 func NewContainerdWatcher(client *containerd.Client, opts ...NewOption) *ContainerdWatcher {

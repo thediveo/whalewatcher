@@ -2,17 +2,25 @@ module github.com/thediveo/whalewatcher
 
 go 1.20
 
+replace github.com/containerd/containerd => github.com/containerd/containerd v1.7.2
+
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/containerd/containerd v1.7.3
+	github.com/containerd/containerd v1.6.6
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v24.0.5+incompatible
-	github.com/onsi/ginkgo/v2 v2.11.0
+	github.com/google/uuid v1.3.1
+	github.com/onsi/ginkgo/v2 v2.12.0
 	github.com/onsi/gomega v1.27.10
-	github.com/opencontainers/image-spec v1.1.0-rc4
+	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
 	github.com/ory/dockertest/v3 v3.10.0
-	github.com/thediveo/fdooze v0.2.0
+	github.com/pkg/errors v0.9.1
+	github.com/thediveo/fdooze v0.3.0
+	github.com/thediveo/once v0.9.0
 	github.com/thediveo/success v1.0.1
+	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
+	google.golang.org/grpc v1.57.0
+	k8s.io/cri-api v0.28.1
 )
 
 require (
@@ -41,7 +49,6 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
@@ -55,7 +62,6 @@ require (
 	github.com/opencontainers/runc v1.1.5 // indirect
 	github.com/opencontainers/runtime-spec v1.1.0-rc.1 // indirect
 	github.com/opencontainers/selinux v1.11.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
@@ -63,16 +69,15 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel v1.14.0 // indirect
 	go.opentelemetry.io/otel/trace v1.14.0 // indirect
-	golang.org/x/exp v0.0.0-20230425010034-47ecfdc1ba53 // indirect
-	golang.org/x/mod v0.10.0 // indirect
-	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/sync v0.2.0 // indirect
-	golang.org/x/sys v0.10.0 // indirect
-	golang.org/x/text v0.11.0 // indirect
-	golang.org/x/tools v0.9.3 // indirect
-	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
-	google.golang.org/grpc v1.53.0 // indirect
-	google.golang.org/protobuf v1.29.1 // indirect
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
+	google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
