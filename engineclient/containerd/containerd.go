@@ -28,17 +28,19 @@ import (
 	"github.com/containerd/typeurl/v2"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"golang.org/x/exp/slices"
 )
 
 // Type specifies this container engine's type identifier.
 const Type = "containerd.io"
 
-// DockerNamespace is the name of the containerd namespace used by Docker for
-// its own containers (and tasks). As the whalewatcher module has a dedicated
-// Docker engine client, we need to skip this namespace -- the rationale is that
-// especially the container name is missing at the containerd engine level, but
-// only available via the docker/moby API.
-const DockerNamespace = "moby"
+// IgnoredNamespaces defines the default configuration of containerd namespaces
+// ignored by this engine client. Use the IgnoreNamespace option to set a
+// different set when creating a new engine client.
+var IgnoredNamespaces = []string{
+	"moby",
+	"k8s.io",
+}
 
 // ComposerProjectLabel is the name of an optional container label identifying
 // the composer project a container is part of. We don't import the definition
@@ -60,9 +62,10 @@ const nsdelemiter = "/"
 // ContainerdWatcher is a containerd EngineClient for interfacing the generic
 // whale watching with containerd daemons.
 type ContainerdWatcher struct {
-	pid    int                         // optional engine PID when known.
-	client *containerd.Client          // containerd API client.
-	packer engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
+	pid               int                         // optional engine PID when known.
+	client            *containerd.Client          // containerd API client.
+	packer            engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
+	ignoredNamespaces []string
 }
 
 // NewContainerdWatcher returns a new ContainerdWatcher using the specified
@@ -70,7 +73,8 @@ type ContainerdWatcher struct {
 // constructor only in unit tests.
 func NewContainerdWatcher(client *containerd.Client, opts ...NewOption) *ContainerdWatcher {
 	cw := &ContainerdWatcher{
-		client: client,
+		client:            client,
+		ignoredNamespaces: IgnoredNamespaces,
 	}
 	for _, opt := range opts {
 		opt(cw)
@@ -89,6 +93,12 @@ type NewOption func(*ContainerdWatcher)
 func WithPID(pid int) NewOption {
 	return func(cw *ContainerdWatcher) {
 		cw.pid = pid
+	}
+}
+
+func WithIgnoredNamespaces(ignores []string) NewOption {
+	return func(cw *ContainerdWatcher) {
+		cw.ignoredNamespaces = ignores
 	}
 }
 
@@ -168,7 +178,7 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 		// daemon and we cannot discover all relevant container information at
 		// the containerd level; namely, the container name (as opposed to its
 		// ID) is missing.
-		if namespace == DockerNamespace {
+		if slices.Contains(cw.ignoredNamespaces, namespace) {
 			continue
 		}
 		// Prepare namespace'd context for further API calls and then get the
@@ -298,7 +308,7 @@ func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (
 				// daemon (API) instead. The reason is that there's no Docker
 				// container name at the containerd level, only the container
 				// ID.
-				if ev.Namespace == DockerNamespace {
+				if slices.Contains(cw.ignoredNamespaces, ev.Namespace) {
 					continue
 				}
 				details, err := typeurl.UnmarshalAny(ev.Event)
