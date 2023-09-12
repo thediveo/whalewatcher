@@ -28,6 +28,7 @@ import (
 	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/test/matcher"
 	rtv1 "k8s.io/cri-api/pkg/apis/runtime/v1"
+	v1 "k8s.io/cri-api/pkg/apis/runtime/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -152,6 +153,12 @@ var _ = Describe("CRI API", Ordered, func() {
 				cw.Close()
 				cw = nil
 			})
+
+			By("fetching API information")
+			Expect(cricl.rtcl.Version(ctx, &v1.VersionRequest{})).To(SatisfyAll(
+				HaveField("Version", Not(BeEmpty())),
+				HaveField("RuntimeName", Not(BeEmpty())),
+			))
 		}
 	}
 
@@ -305,8 +312,10 @@ var _ = Describe("CRI API", Ordered, func() {
 			DeferCleanup(func(ctx context.Context) {
 				By("cleaning up: removing the container")
 				Expect(cricl.rtcl.RemoveContainer(ctx, &rtv1.RemoveContainerRequest{
-					ContainerId: podr.PodSandboxId,
-				})).Error().NotTo(HaveOccurred())
+					ContainerId: podcntr.ContainerId,
+				})).Error().To(Or(
+					Not(HaveOccurred()),
+					MatchError(ContainSubstring("code = NotFound"))))
 			})
 
 			By("starting the container")
@@ -349,12 +358,12 @@ var _ = Describe("CRI API", Ordered, func() {
 	}
 
 	When("using containerd", func() {
-		BeforeEach(beforeEachWithAPIPath("/run/containerd/containerd.sock"))
+		BeforeAll(beforeEachWithAPIPath("/run/containerd/containerd.sock"))
 		tests()
 	})
 
 	When("using cri-o", func() {
-		BeforeEach(beforeEachWithAPIPath("/run/crio/crio.sock"))
+		BeforeAll(beforeEachWithAPIPath("/run/crio/crio.sock"))
 		tests()
 	})
 
