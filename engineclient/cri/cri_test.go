@@ -17,6 +17,7 @@ package cri
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/thediveo/once"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"github.com/thediveo/whalewatcher/engineclient/cri/test/img"
 	"github.com/thediveo/whalewatcher/test"
 	"github.com/thediveo/whalewatcher/test/matcher"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -36,7 +38,9 @@ import (
 )
 
 const (
-	kindischName     = "kindisch-ww-cri" // name of Docker container with containerd+cri-o
+	// // name of Docker container with containerd and cri-o engines
+	kindischName = "ww-engineclient-cri"
+
 	k8sTestNamespace = "wwcritest"
 	k8sTestPodName   = "wwcritestpod"
 )
@@ -77,20 +81,23 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 		//   --volume /var
 		//   --volume /lib/modules:/lib/modules:ro
 		//	 kindisch-...
-		providerCntr = Successful(pool.BuildAndRunWithBuildOptions(
-			&dockertest.BuildOptions{
-				ContextDir: "./test/kindisch", // sorry, couldn't resist the pun.
-				Dockerfile: "Dockerfile",
-				BuildArgs: []docker.BuildArg{
-					{Name: "KINDEST_BASE_TAG", Value: test.KindestBaseImageTag},
-				},
+		Expect(pool.Client.BuildImage(docker.BuildImageOptions{
+			Name:       img.Name,
+			ContextDir: "./test/_kindisch", // sorry, couldn't resist the pun.
+			Dockerfile: "Dockerfile",
+			BuildArgs: []docker.BuildArg{
+				{Name: "KINDEST_BASE_TAG", Value: test.KindestBaseImageTag},
 			},
+			OutputStream: io.Discard,
+		})).To(Succeed())
+		providerCntr = Successful(pool.RunWithOptions(
 			&dockertest.RunOptions{
 				Name:       kindischName,
+				Repository: img.Name,
 				Privileged: true,
 				Mounts: []string{
+					"/var", // well, this actually is an unnamed volume
 					"/dev/mapper:/dev/mapper",
-					"/var",
 					"/lib/modules:/lib/modules:ro",
 				},
 			}, func(hc *docker.HostConfig) {

@@ -31,6 +31,8 @@ func Successfully(cntr *dockertest.Resource, args ...string) {
 	exitCode, err := cntr.Exec(
 		append([]string{"ctr"}, args...),
 		dockertest.ExecOptions{
+			// https://github.com/ory/dockertest/issues/472
+
 			//StdOut: gi.GinkgoWriter,
 			//StdErr: gi.GinkgoWriter,
 			TTY: false,

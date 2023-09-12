@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package moby
+package cri
 
 import (
 	"testing"
@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestMobyWatcher(t *testing.T) {
+func TestCRIWatcher(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "watcher/moby")
+	RunSpecs(t, "watcher/cri")
 }

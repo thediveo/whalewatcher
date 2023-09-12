@@ -117,3 +117,11 @@ func (c *Client) Close() error {
 	}
 	return nil
 }
+
+func (c *Client) RuntimeService() runtimev1.RuntimeServiceClient {
+	return c.rtcl
+}
+
+func (c *Client) ImageService() runtimev1.ImageServiceClient {
+	return c.imgcl
+}

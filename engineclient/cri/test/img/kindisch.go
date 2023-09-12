@@ -1,4 +1,4 @@
-// Copyright 2021 Harald Albrecht.
+// Copyright 2023 Harald Albrecht.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package moby
+package img
 
-import (
-	"testing"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-)
-
-func TestMobyWatcher(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "watcher/moby")
-}
+// Name of the kindisch image that bases on "kindest/base" and comes with the
+// two CRI supporting engines, “containerd” and “cri-o”. This also
+// containers a very rudimentary CNI networking configuration.
+const Name = "thediveo/kindisch-ww-containerd-crio"
