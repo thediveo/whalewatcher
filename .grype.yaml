@@ -1,7 +1,0 @@
-ignore:
-
-    # CVE is about the C-based protobuf version, but stupidly matches
-    # independent Go implementation. Quality CVEs, innit?!
-    - vulnerability: CVE-2015-5237
-      package:
-        type: go-module

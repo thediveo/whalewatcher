@@ -5,7 +5,7 @@
 ![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)
 ![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
-![Coverage](https://img.shields.io/badge/Coverage-90.7%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-86.7%25-brightgreen)
 
 🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
 the tedious task of constantly monitoring "alive" container workloads: no need
@@ -18,6 +18,12 @@ of affairs at any time when it needs to do so. The workload state then is
 directly answered from `whalewatcher`'s trackers without causing container
 engine load: which containers are alive right now? And what composer projects
 are in use?
+
+Oh, `whalewatcher` isn't limited to just Docker, it also supports
+[nerdctl](https://github.com/containerd/nerdctl) with _plain_ containerd. Wait,
+there's even more: any container engine supporting the [CRI pod event
+API](https://github.com/kubernetes/cri-api/blob/604407e718bd257069ddd48932eefea00eb1c9a7/pkg/apis/runtime/v1/api.proto#L123)
+can be tracked, too.
 
 ## Stayin' Alive
 
@@ -47,18 +53,17 @@ synchronized to the container engine state.
   labels, (un)pausing state, and optional (composer) project. See the
   [`whalewatcher.Container`](https://pkg.go.dev/github.com/thediveo/whalewatcher#Container)
   type for details.
-- supports different container engines:
-  - [Docker/Moby](https://github.com/moby/moby)
-  - plain [containerd](https://github.com/containerd/containerd)
-  - in the future, when [cri-o/cri-o issue 5609, _[RFE] Event API for container
-    lifecycle events_](https://github.com/cri-o/cri-o/issues/5609) hopefully
-    will be implemented, [cri-o](https://cri-o.io/) can be supported some day
-    too.
-  - for Podman support please see the separate
-    [sealwatcher](https://github.com/thediveo/sealwatcher) module. (Sealwatcher
-    is a separate module due to its many dev headers and libraries dependencies
-    which actually aren't needed for Podman REST API clients, but still have to
-    be installed.)
+- supports multiple types of container engines:
+  - [Docker/Moby](https://github.com/moby/moby).
+  - plain [containerd](https://github.com/containerd/containerd) using containerd's native API.
+  - [cri-o](https://cri-o.io/) and [containerd](https://github.com/containerd/containerd) via the generic CRI pod event API. In principle, other container engines implementing the CRI pod event API should also work:
+    - sandbox container lifecycle events must be reported and not suppressed.
+    - sandbox and container PIDs must be reported by the verbose variant of the
+      container status API call in the PID field of the JSON info object.
+  - Podman: **use the Docker/Moby watcher.** Due to several severe issues we're
+    not supporting Podman's own API any longer and have archived the sealwatcher
+    _experiment_. More background information can be found in [alias
+    podman=p.o.'d.man](http://thediveo.github.io/#/art/podman).
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
   - [nerdctl](https://github.com/containerd/nerdctl)
@@ -131,8 +136,18 @@ func main() {
 ## Hacking It
 
 This project comes with comprehensive unit tests, including (albeit limited)
-mocking of Docker clients to the small extend required for whale watching. The
-tests also cover leak checks:
+mocking of Docker clients to the small extend required for whale watching.
+
+- unit tests require Docker CE in a _moderately_ recent version. Debian users
+  are advised to install Docker CE from Docker's package, as Debian's own
+  packages tend to completely outdate function-wise over the lifespan of a
+  particular Debian release.
+
+> **Fun Fact:** the tests covering containerd and CRI-O use a dockerized
+> container/cri-o image, leveraging the `kindest/base` image by the KinD SIG, in
+> ways the SIG surely didn't envision.
+
+The tests come with integrated leak checks:
 
 * goroutine leak checking courtesy of Gomega's
   [`gleak`](https://onsi.github.io/gomega/#codegleakcode-finding-leaked-goroutines)
@@ -145,6 +160,21 @@ tests also cover leak checks:
 ensures to run all package tests always sequentially, but in case you run `go
 test` yourself, please don't forget `-p 1` when testing multiple packages in
 one, _erm_, go.
+
+Unit tests about interfacing with and tracking containerd and CRI container
+engines use **Docker containers with containerized containerd and cri-o
+engines**. The corresponding test images base on [`kindest/base` Docker
+images](https://hub.docker.com/r/kindest/base), courtesy of the [KinD k8s
+SIG](https://github.com/kubernetes-sigs/kind). Now, we fully understand that
+we're on our own here with no guarantees given by the KinD k8s SIG. However,
+their `kindest/base` images are really helpful in coming up with containerizing
+a containerd engine to a Docker container that we cannot simply pass by them.
+
+All we're adding is some slim configuration so that we can create some pods
+and/or containers. The cri-o bases on some instructions about how to modify the
+KinD images to use cri-o instead of containerd; but in our case we install them
+both side-by-side. And as it happens, they seem to somehow get along with each
+other when confined to the same Docker container.
 
 ## VSCode Tasks
 

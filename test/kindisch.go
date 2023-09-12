@@ -12,16 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package moby
+package test
 
-import (
-	"testing"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-)
-
-func TestMobyWatcher(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "watcher/moby")
-}
+// KindestBaseImageTag of kindest/base Docker image containing containerd to use
+// in tests without messing with the outer Docker's containerd engine instance
+// in the host. At least we hope that it might be the host, one never knows
+// these days. And I don't want to watch my totem anyway.
+const KindestBaseImageTag = "v20230525-4c49613f"
