@@ -1,7 +1,5 @@
-
-# The kindest/base tag to build from should normally be passed as a build
-# argument. This is just a fallback.
-ARG KINDEST_BASE_TAG=v20230525-4c49613f
+# Enforce that the kindest/base tag to build from must always be specified.
+ARG KINDEST_BASE_TAG
 
 FROM kindest/base:${KINDEST_BASE_TAG}
 

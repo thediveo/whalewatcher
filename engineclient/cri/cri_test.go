@@ -26,28 +26,29 @@ import (
 	"github.com/thediveo/once"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"github.com/thediveo/whalewatcher/test"
 	"github.com/thediveo/whalewatcher/test/matcher"
-	rtv1 "k8s.io/cri-api/pkg/apis/runtime/v1"
-	v1 "k8s.io/cri-api/pkg/apis/runtime/v1"
+	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/types"
 	. "github.com/thediveo/success"
 )
 
-const kindestBaseTag = "v20230525-4c49613f"
-
-const kindischName = "kindisch-ww-cri"
-const testNamespace = "wwcritest"
-const testPod = "wwcritestpod"
+const (
+	kindischName     = "kindisch-ww-cri" // name of Docker container with containerd+cri-o
+	k8sTestNamespace = "wwcritest"
+	k8sTestPodName   = "wwcritestpod"
+)
 
 var _ = Describe("CRI API", Ordered, func() {
 
-	const withSandboxEvents = true
-
 	var providerCntr *dockertest.Resource
 
+	// We build and use the same Docker container for testing our CRI event API
+	// client with both containerd as well as cri-o. Fortunately, installing
+	// cri-o on top of the containerd-powered kindest/base image turns out to be
+	// not that complicated.
 	BeforeAll(func(ctx context.Context) {
 		if os.Getuid() != 0 {
 			Skip("needs root")
@@ -60,7 +61,10 @@ var _ = Describe("CRI API", Ordered, func() {
 		// provisioner, see:
 		// https://github.com/kubernetes-sigs/kind/blob/3610f606516ccaa88aa098465d8c13af70937050/pkg/cluster/internal/providers/docker/provision.go#L133
 		//
-		// Please note that --privileged already implies switching off AppArmor
+		// Please note that --privileged already implies switching off AppArmor.
+		//
+		// Please note further, that currently some Docker client CLI flags
+		// don't translate into dockertest-supported options.
 		//
 		// docker run -it --rm --name kindisch
 		//   --privileged
@@ -77,7 +81,7 @@ var _ = Describe("CRI API", Ordered, func() {
 				ContextDir: "./test/kindisch", // sorry, couldn't resist the pun.
 				Dockerfile: "Dockerfile",
 				BuildArgs: []docker.BuildArg{
-					{Name: "KINDEST_BASE_TAG", Value: kindestBaseTag},
+					{Name: "KINDEST_BASE_TAG", Value: test.KindestBaseImageTag},
 				},
 			},
 			&dockertest.RunOptions{
@@ -134,15 +138,15 @@ var _ = Describe("CRI API", Ordered, func() {
 
 			By("waiting for the CRI API to become fully operational", func() {
 				Eventually(ctx, func(ctx context.Context) error {
-					_, err := cricl.rtcl.Status(ctx, &rtv1.StatusRequest{})
+					_, err := cricl.rtcl.Status(ctx, &runtime.StatusRequest{})
 					return err
 				}).ProbeEvery(250 * time.Millisecond).
 					Should(Succeed())
 			})
 
 			By("pulling the required canary image")
-			Expect(cricl.imgcl.PullImage(ctx, &rtv1.PullImageRequest{
-				Image: &rtv1.ImageSpec{
+			Expect(cricl.imgcl.PullImage(ctx, &runtime.PullImageRequest{
+				Image: &runtime.ImageSpec{
 					Image: "busybox:stable",
 				},
 			})).Error().NotTo(HaveOccurred())
@@ -155,7 +159,7 @@ var _ = Describe("CRI API", Ordered, func() {
 			})
 
 			By("fetching API information")
-			Expect(cricl.rtcl.Version(ctx, &v1.VersionRequest{})).To(SatisfyAll(
+			Expect(cricl.rtcl.Version(ctx, &runtime.VersionRequest{})).To(SatisfyAll(
 				HaveField("Version", Not(BeEmpty())),
 				HaveField("RuntimeName", Not(BeEmpty())),
 			))
@@ -170,31 +174,31 @@ var _ = Describe("CRI API", Ordered, func() {
 
 		It("lists and inspects an existing container", func(ctx context.Context) {
 			By("creating a new pod")
-			podconfig := &rtv1.PodSandboxConfig{
-				Metadata: &rtv1.PodSandboxMetadata{
-					Name:      testPod,
-					Namespace: testNamespace,
+			podconfig := &runtime.PodSandboxConfig{
+				Metadata: &runtime.PodSandboxMetadata{
+					Name:      k8sTestPodName,
+					Namespace: k8sTestNamespace,
 					Uid:       uuid.NewString(),
 				},
 			}
-			podsbox := Successful(cricl.rtcl.RunPodSandbox(ctx, &rtv1.RunPodSandboxRequest{
+			podsbox := Successful(cricl.rtcl.RunPodSandbox(ctx, &runtime.RunPodSandboxRequest{
 				Config: podconfig,
 			}))
 			defer func() {
 				By("removing the pod")
-				Expect(cricl.rtcl.RemovePodSandbox(ctx, &rtv1.RemovePodSandboxRequest{
+				Expect(cricl.rtcl.RemovePodSandbox(ctx, &runtime.RemovePodSandboxRequest{
 					PodSandboxId: podsbox.PodSandboxId,
 				})).Error().NotTo(HaveOccurred())
 			}()
 
 			By("creating a container inside the pod")
-			podcntr := Successful(cricl.rtcl.CreateContainer(ctx, &rtv1.CreateContainerRequest{
+			podcntr := Successful(cricl.rtcl.CreateContainer(ctx, &runtime.CreateContainerRequest{
 				PodSandboxId: podsbox.PodSandboxId,
-				Config: &rtv1.ContainerConfig{
-					Metadata: &rtv1.ContainerMetadata{
+				Config: &runtime.ContainerConfig{
+					Metadata: &runtime.ContainerMetadata{
 						Name: "hellorld",
 					},
-					Image: &rtv1.ImageSpec{
+					Image: &runtime.ImageSpec{
 						Image: "busybox:stable",
 					},
 					Command: []string{
@@ -213,13 +217,13 @@ var _ = Describe("CRI API", Ordered, func() {
 			}))
 			defer func() {
 				By("removing the container")
-				Expect(cricl.rtcl.RemoveContainer(ctx, &rtv1.RemoveContainerRequest{
+				Expect(cricl.rtcl.RemoveContainer(ctx, &runtime.RemoveContainerRequest{
 					ContainerId: podcntr.ContainerId,
 				})).Error().NotTo(HaveOccurred())
 			}()
 
 			By("starting the container")
-			Expect(cricl.rtcl.StartContainer(ctx, &rtv1.StartContainerRequest{
+			Expect(cricl.rtcl.StartContainer(ctx, &runtime.StartContainerRequest{
 				ContainerId: podcntr.ContainerId,
 			})).Error().NotTo(HaveOccurred())
 
@@ -258,41 +262,39 @@ var _ = Describe("CRI API", Ordered, func() {
 			}
 
 			By("creating a new pod")
-			podconfig := &rtv1.PodSandboxConfig{
-				Metadata: &rtv1.PodSandboxMetadata{
-					Name:      testPod,
-					Namespace: testNamespace,
+			podconfig := &runtime.PodSandboxConfig{
+				Metadata: &runtime.PodSandboxMetadata{
+					Name:      k8sTestPodName,
+					Namespace: k8sTestNamespace,
 					Uid:       uuid.NewString(),
 				},
-				Hostname: testPod,
+				Hostname: k8sTestPodName,
 			}
-			podr := Successful(cricl.rtcl.RunPodSandbox(ctx, &rtv1.RunPodSandboxRequest{
+			podr := Successful(cricl.rtcl.RunPodSandbox(ctx, &runtime.RunPodSandboxRequest{
 				Config: podconfig,
 			}))
 			DeferCleanup(func(ctx context.Context) {
 				By("cleaning up: removing the pod")
-				Expect(cricl.rtcl.RemovePodSandbox(ctx, &rtv1.RemovePodSandboxRequest{
+				Expect(cricl.rtcl.RemovePodSandbox(ctx, &runtime.RemovePodSandboxRequest{
 					PodSandboxId: podr.PodSandboxId,
 				})).Error().NotTo(HaveOccurred())
 			})
 
-			if withSandboxEvents {
-				By("waiting for the sandbox started event")
-				Eventually(cntrevch).Within(5 * time.Second).ProbeEvery(100 * time.Millisecond).
-					Should(Receive(And(
-						HaveField("Type", engineclient.ContainerStarted),
-						HaveField("ID", podr.PodSandboxId),
-					)))
-			}
+			By("waiting for the sandbox started event")
+			Eventually(cntrevch).Within(5 * time.Second).ProbeEvery(100 * time.Millisecond).
+				Should(Receive(And(
+					HaveField("Type", engineclient.ContainerStarted),
+					HaveField("ID", podr.PodSandboxId),
+				)))
 
 			By("creating a container inside the pod")
-			podcntr := Successful(cricl.rtcl.CreateContainer(ctx, &rtv1.CreateContainerRequest{
+			podcntr := Successful(cricl.rtcl.CreateContainer(ctx, &runtime.CreateContainerRequest{
 				PodSandboxId: podr.PodSandboxId,
-				Config: &rtv1.ContainerConfig{
-					Metadata: &rtv1.ContainerMetadata{
+				Config: &runtime.ContainerConfig{
+					Metadata: &runtime.ContainerMetadata{
 						Name: "hellorld",
 					},
-					Image: &rtv1.ImageSpec{
+					Image: &runtime.ImageSpec{
 						Image: "busybox:stable",
 					},
 					Command: []string{
@@ -311,7 +313,7 @@ var _ = Describe("CRI API", Ordered, func() {
 			}))
 			DeferCleanup(func(ctx context.Context) {
 				By("cleaning up: removing the container")
-				Expect(cricl.rtcl.RemoveContainer(ctx, &rtv1.RemoveContainerRequest{
+				Expect(cricl.rtcl.RemoveContainer(ctx, &runtime.RemoveContainerRequest{
 					ContainerId: podcntr.ContainerId,
 				})).Error().To(Or(
 					Not(HaveOccurred()),
@@ -319,7 +321,7 @@ var _ = Describe("CRI API", Ordered, func() {
 			})
 
 			By("starting the container")
-			Expect(cricl.rtcl.StartContainer(ctx, &rtv1.StartContainerRequest{
+			Expect(cricl.rtcl.StartContainer(ctx, &runtime.StartContainerRequest{
 				ContainerId: podcntr.ContainerId,
 			})).Error().NotTo(HaveOccurred())
 
@@ -331,25 +333,22 @@ var _ = Describe("CRI API", Ordered, func() {
 				)))
 
 			By("removing the pod")
-			Expect(cricl.rtcl.RemovePodSandbox(ctx, &rtv1.RemovePodSandboxRequest{
+			Expect(cricl.rtcl.RemovePodSandbox(ctx, &runtime.RemovePodSandboxRequest{
 				PodSandboxId: podr.PodSandboxId,
 			})).Error().NotTo(HaveOccurred())
 
 			By("waiting for the container and pod stopped events")
-			expected := []types.GomegaMatcher{
-				And(
-					HaveField("Type", engineclient.ContainerExited),
-					HaveField("ID", podcntr.ContainerId),
-				),
-			}
-			if withSandboxEvents {
-				expected = append(expected, And(
-					HaveField("Type", engineclient.ContainerExited),
-					HaveField("ID", podr.PodSandboxId),
-				))
-			}
 			Eventually(cntrevch).Within(5 * time.Second).ProbeEvery(100 * time.Millisecond).
-				Should(Receive(matcher.All(expected...)))
+				Should(Receive(matcher.All(
+					And(
+						HaveField("Type", engineclient.ContainerExited),
+						HaveField("ID", podcntr.ContainerId),
+					),
+					And(
+						HaveField("Type", engineclient.ContainerExited),
+						HaveField("ID", podr.PodSandboxId),
+					),
+				)))
 
 			closeOnce()
 			Eventually(errch).Should(BeClosed())
