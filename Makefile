@@ -25,5 +25,8 @@ test: ## run unit tests
 vuln: ## runs govulncheck
 	@scripts/vuln.sh
 
+grype: ## runs grype vulnerabilities scanner
+	@scripts/grypes.sh
+
 chores: ## updates Go binaries and NPM helper packages if necessary
 	@scripts/chores.sh
