@@ -41,7 +41,7 @@ const (
 	k8sTestPodName   = "wwcritestpod"
 )
 
-var _ = Describe("CRI API", Ordered, func() {
+var _ = Describe("CRI API engineclient", Ordered, func() {
 
 	var providerCntr *dockertest.Resource
 
@@ -66,7 +66,7 @@ var _ = Describe("CRI API", Ordered, func() {
 		// Please note further, that currently some Docker client CLI flags
 		// don't translate into dockertest-supported options.
 		//
-		// docker run -it --rm --name kindisch
+		// docker run -it --rm --name kindisch-...
 		//   --privileged
 		//   --cgroupns=private
 		//   --init=false
@@ -75,7 +75,8 @@ var _ = Describe("CRI API", Ordered, func() {
 		//   --tmpfs /tmp
 		//   --tmpfs /run
 		//   --volume /var
-		//   --volume /lib/modules:/lib/modules:ro ww-containerd-in-docker-test
+		//   --volume /lib/modules:/lib/modules:ro
+		//	 kindisch-...
 		providerCntr = Successful(pool.BuildAndRunWithBuildOptions(
 			&dockertest.BuildOptions{
 				ContextDir: "./test/kindisch", // sorry, couldn't resist the pun.
@@ -106,7 +107,6 @@ var _ = Describe("CRI API", Ordered, func() {
 			By("removing the CRI API providers Docker container")
 			Expect(pool.Purge(providerCntr)).To(Succeed())
 		})
-
 	})
 
 	// In the following, we want to run the set of unit tests on multiple CRI
@@ -127,9 +127,9 @@ var _ = Describe("CRI API", Ordered, func() {
 				providerCntr.Container.State.Pid, apipath)
 			Eventually(func() error {
 				var err error
-				cricl, err = New(endpoint)
+				cricl, err = New(endpoint, WithTimeout(1*time.Second))
 				return err
-			}).Within(30*time.Second).ProbeEvery(100*time.Millisecond).
+			}).Within(30*time.Second).ProbeEvery(1*time.Second).
 				Should(Succeed(), "CRI API provider never became responsive")
 			DeferCleanup(func() {
 				cricl.Close()
