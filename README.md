@@ -5,7 +5,7 @@
 ![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)
 ![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
-![Coverage](https://img.shields.io/badge/Coverage-87.0%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-86.7%25-brightgreen)
 
 🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
 the tedious task of constantly monitoring "alive" container workloads: no need
@@ -55,13 +55,15 @@ synchronized to the container engine state.
   type for details.
 - supports multiple types of container engines:
   - [Docker/Moby](https://github.com/moby/moby).
-  - plain [containerd](https://github.com/containerd/containerd).
+  - plain [containerd](https://github.com/containerd/containerd) using containerd's native API.
   - [cri-o](https://cri-o.io/) and [containerd](https://github.com/containerd/containerd) via the generic CRI pod event API. In principle, other container engines implementing the CRI pod event API should also work:
     - sandbox container lifecycle events must be reported and not suppressed.
     - sandbox and container PIDs must be reported by the verbose variant of the
       container status API call in the PID field of the JSON info object.
-  - Podman: use the Docker/Moby watcher. Due to several severe issues we're not
-    supporting Podman's own API and have archived the sealwatcher _experiment_. More background information can be found in [alias podman=p.o.'d.man](http://thediveo.github.io/#/art/podman).
+  - Podman: **use the Docker/Moby watcher.** Due to several severe issues we're
+    not supporting Podman's own API any longer and have archived the sealwatcher
+    _experiment_. More background information can be found in [alias
+    podman=p.o.'d.man](http://thediveo.github.io/#/art/podman).
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
   - [nerdctl](https://github.com/containerd/nerdctl)
@@ -140,6 +142,10 @@ mocking of Docker clients to the small extend required for whale watching.
   are advised to install Docker CE from Docker's package, as Debian's own
   packages tend to completely outdate function-wise over the lifespan of a
   particular Debian release.
+
+> **Fun Fact:** the tests covering containerd and CRI-O use a dockerized
+> container/cri-o image, leveraging the `kindest/base` image by the KinD SIG, in
+> ways the SIG surely didn't envision.
 
 The tests come with integrated leak checks:
 
