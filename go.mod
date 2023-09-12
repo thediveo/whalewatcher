@@ -5,14 +5,19 @@ go 1.20
 replace github.com/containerd/containerd => github.com/containerd/containerd v1.7.2
 
 require (
+	github.com/docker/distribution v2.8.2+incompatible // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
+)
+
+require github.com/containerd/containerd v1.7.5
+
+require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/containerd/containerd v1.6.6
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v24.0.5+incompatible
-	github.com/google/uuid v1.3.1
 	github.com/onsi/ginkgo/v2 v2.12.0
 	github.com/onsi/gomega v1.27.10
-	github.com/opencontainers/image-spec v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
+	github.com/opencontainers/image-spec v1.1.0-rc4
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/pkg/errors v0.9.1
 	github.com/thediveo/fdooze v0.3.0
@@ -36,7 +41,6 @@ require (
 	github.com/containerd/ttrpc v1.2.2 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/docker/cli v23.0.3+incompatible // indirect
-	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -49,6 +53,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
+	github.com/google/uuid v1.3.1
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
@@ -76,7 +81,6 @@ require (
 	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
 	google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
