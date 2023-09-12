@@ -21,18 +21,22 @@ import (
 
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"golang.org/x/exp/maps"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // AnnotationKeyPrefix prefixes all Kubernetes annotation keys in order to avoid
 // clashes between label keys and annotation keys, because the whalewatcher
-// model only defines “labels” as a more generic construct.
-const AnnotationKeyPrefix = "annotation.k8s/"
+// model only defines “labels” as a more generic construct. And since we're here
+// on the whalewatcher/lxkns level, the Kubernetes rules for label and annotation
+// keys don't applay anymore.
+const AnnotationKeyPrefix = "io.kubernetes.annotation/"
 
 // PodNameLabel specifies the pod name of a container.
 const PodNameLabel = "io.kubernetes.pod.name"
 
-// PodNamespaceLabel specifies the namespace of the pod a container is part of.
+// PodNamespaceLabel specifies the namespace of the pod a container (or the pod
+// sandbox) is part of.
 const PodNamespaceLabel = "io.kubernetes.pod.namespace"
 
 // PodContainerNameLabel specifies the name of a container inside a pod from the
@@ -42,7 +46,16 @@ const PodContainerNameLabel = "io.kubernetes.container.name"
 // PodUidLabel specifies the UID of a pod (=group).
 const PodUidLabel = "io.kubernetes.pod.uid"
 
-// FIXME:
+// PodSandboxLabel marks a container as the pod sandbox (or “pause”) container;
+// this label is present only on sandbox containers and the label value is
+// irrelevant.
+const PodSandboxLabel = "io.kubernetes.sandbox"
+
+// We use kubeAPIVersion to identify us to the CRI API provider; now, this is
+// flaky territory in the Evented PLEG API: is isn't (yet) checked in any way
+// and there is no specification as to what exactly needs to be specified here.
+// Is it the API semver with or without the “v” prefix? Is it the 1.x semver of
+// the API specification, or is it the semver of the Go API implementation...?
 const kubeAPIVersion = "0.1.0"
 
 // Type specifies this container engine's type identifier.
@@ -133,9 +146,9 @@ func (cw *CRIWatcher) Close() {
 }
 
 // List all the currently alive and kicking containers. In case of the CRI API
-// this actually turns out to be a someone involved process, as the API has been
-// designed solely from the kubelet perspective and thus tends to becomde
-// inefficient in other use cases.
+// this actually turns out to be a somewhat involved process, as the API has
+// been designed solely from the kubelet perspective and thus tends to become
+// unwieldly in other use cases.
 func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, error) {
 	cntrs, err := cw.client.rtcl.ListContainers(ctx, &runtime.ListContainersRequest{
 		Filter: &runtime.ContainerFilter{
@@ -188,7 +201,7 @@ func (cw *CRIWatcher) newContainer(
 		return nil
 	}
 	// We still don't know this container's PID and the CRI API actually
-	// doesn't provide it anywhere. Instead, at least some CRI-providing
+	// doesn't provide it anywhere. Instead, at least some CRI-supporting
 	// container engines reveal container PIDs through the "info" element of
 	// the container status. Well, another round trip to the container
 	// engine, then. Thanks CRI for nothing.
@@ -199,6 +212,8 @@ func (cw *CRIWatcher) newContainer(
 	if err != nil {
 		return nil
 	}
+	// Please note that the "info" element inside the verbose information
+	// element uses JSON textual representation. This *is* convoluted.
 	info := status.Info["info"]
 	if info == "" {
 		return nil
@@ -209,16 +224,22 @@ func (cw *CRIWatcher) newContainer(
 	if err := json.Unmarshal([]byte(info), &innerInfo); err != nil {
 		return nil
 	}
+
+	labels := maps.Clone(cntr.Labels)
 	// Map annotations to the generic labels, using a unique key prefix to make
-	// them easily and determistically detectable.
-	labels := cntr.Labels
+	// them easily and deterministically detectable.
 	for key, value := range cntr.Annotations {
 		labels[AnnotationKeyPrefix+key] = value
 	}
+
 	labels[PodUidLabel] = pods.Items[0].Metadata.Uid
 	labels[PodNameLabel] = pods.Items[0].Metadata.Name
 	labels[PodNamespaceLabel] = pods.Items[0].Metadata.Namespace
 	labels[PodContainerNameLabel] = cntr.Metadata.Name
+
+	if cntr.Id == cntr.PodSandboxId {
+		labels[cntr.PodSandboxId] = "" // exact value doesn't matter
+	}
 
 	return &whalewatcher.Container{
 		ID:     cntr.Id,

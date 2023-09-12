@@ -1,6 +1,39 @@
 /*
 Package cri implements the CRI API EngineClient. It requires a CRI engine
-supporting the GetContainerEvents API in the CRI RuntimeService.
+supporting the GetContainerEvents API in the CRI RuntimeService [Evented PLEG].
+When used with the matching watcher, clients can track the container(!) workload
+in Kubernetes configurations with low overhead in the steady state.
+
+The CRI EngineClient is not meant as a replacement for the k8s control plane
+API. In fact, it can't, as the design of the CRI API doesn't allow so.
+
+This package is now the source of truth for the definitions of label keys used
+to report pod sandbox and container meta data, retiring the lxkns kuhbernetes
+decorator definitions.
+
+# CRI Notes
+
+The CRI API is primarily designed to make Kubernetes (and its “kubelets” in
+particular) happy, not 3rd party tools. This is especially true when it comes to
+pod lifecycle events: “The overarching goal of this effort is to reduce the
+Kubelet and CRI implementation's steady state CPU usage” ([3386-KEP]).
+
+The unfortunate effect is that we either have to live with what the CRI API has
+on offer or resort to engine-specific individual APIs. In case of the CRI-O
+engine, there really isn't a specific API except the CRI API.
+
+Also, while Docker and containerd function very well as their own bosses and
+have well-equipped APIs to go with that, the CRI API has the division between
+the Kubernetes control plane and the container engine baked into it.
+
+For instance, while the CRI API allows attaching labels and annotations to
+(sandbox) pods and containers, the real place to store k8s resource(!) labels
+and annotations is still Kubernetes' control plane. For some reason, the
+pod/container lifecycle event API does not send events when the labels and/or
+annotations get changed; that might be due to the assumption that the kubelet
+triggered the changes, so it doesn't need to know ... but then, why is this
+information evented in other situations? Unfortunately, members of the Evented
+PLEG weren't so far clarifying this situation when asked about it.
 
 # Tested CRI API Supporters
 
@@ -19,12 +52,15 @@ Ensure to enable “pod events” in the container engine configuration:
 # Kubernetes Labels and Annotations
 
 Kubernetes differentiates between non-identifying [annotations] and often
-identifying [labels]. However, the whalewatcher model doesn't differentiate
-between annotations and labels as separate first-class elements, but instead
-maps annotations also to labels.
+identifying [labels] that can be attached to all kinds of resources, and not
+just containers. However, the whalewatcher model doesn't differentiate between
+annotations and labels as separate first-class elements, but instead maps
+annotations also to labels.
 
 In order to avoid potential key clashes of annotations with other labels, we
-simply prefix all annotation keys with “annotation.k8s/”.
+simply prefix all annotation keys with “annotation.k8s/”. Yes, that's “k8s” and
+not “k8s.io”, as Kubernetes deserves its own TLD anyway and we don't want to
+mess with the “k8s.io” domain.
 
 # CRI API Model
 
@@ -115,5 +151,7 @@ extra ContainerStatus API call.
 [annotations]: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 [containerd]: https://containerd.io
 [cri-o]: https://cri-o.io
+[3386-KEP]: https://github.com/kubernetes/enhancements/blob/master/keps/sig-node/3386-kubelet-evented-pleg/README.md
+[Evented PLEG]: https://kubernetes.io/docs/tasks/administer-cluster/switch-to-evented-pleg/
 */
 package cri

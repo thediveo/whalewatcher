@@ -45,6 +45,8 @@ const (
 	k8sTestPodName   = "wwcritestpod"
 )
 
+// Please note that these tests assume that pod sandboxes also get reported
+// through events.
 var _ = Describe("CRI API engineclient", Ordered, func() {
 
 	var providerCntr *dockertest.Resource

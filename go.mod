@@ -6,7 +6,7 @@ replace github.com/containerd/containerd => github.com/containerd/containerd v1.
 
 require (
 	github.com/docker/distribution v2.8.2+incompatible // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
 )
 
 require github.com/containerd/containerd v1.7.5
@@ -14,7 +14,7 @@ require github.com/containerd/containerd v1.7.5
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/containerd/typeurl/v2 v2.1.1
-	github.com/docker/docker v24.0.5+incompatible
+	github.com/docker/docker v24.0.6+incompatible
 	github.com/onsi/ginkgo/v2 v2.12.0
 	github.com/onsi/gomega v1.27.10
 	github.com/opencontainers/image-spec v1.1.0-rc4
@@ -23,8 +23,8 @@ require (
 	github.com/thediveo/fdooze v0.3.0
 	github.com/thediveo/once v0.9.0
 	github.com/thediveo/success v1.0.1
-	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
-	google.golang.org/grpc v1.57.0
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
+	google.golang.org/grpc v1.58.0
 	k8s.io/cri-api v0.28.1
 )
 
@@ -75,13 +75,13 @@ require (
 	go.opentelemetry.io/otel v1.14.0 // indirect
 	go.opentelemetry.io/otel/trace v1.14.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
-	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
-	google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
+	google.golang.org/genproto v0.0.0-20230711160842-782d3b101e98 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
