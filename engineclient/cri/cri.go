@@ -21,7 +21,7 @@ import (
 
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
-	runtimev1 "k8s.io/cri-api/pkg/apis/runtime/v1"
+	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 // AnnotationKeyPrefix prefixes all Kubernetes annotation keys in order to avoid
@@ -106,7 +106,7 @@ func (cw *CRIWatcher) Type() string { return Type }
 
 // Version information about the engine.
 func (cw *CRIWatcher) Version(ctx context.Context) string {
-	version, err := cw.client.rtcl.Version(ctx, &runtimev1.VersionRequest{
+	version, err := cw.client.rtcl.Version(ctx, &runtime.VersionRequest{
 		Version: kubeAPIVersion,
 	})
 	if err != nil {
@@ -135,9 +135,9 @@ func (cw *CRIWatcher) Close() {
 // designed solely from the kubelet perspective and thus tends to becomde
 // inefficient in other use cases.
 func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, error) {
-	cntrs, err := cw.client.rtcl.ListContainers(ctx, &runtimev1.ListContainersRequest{
-		Filter: &runtimev1.ContainerFilter{
-			State: &runtimev1.ContainerStateValue{State: runtimev1.ContainerState_CONTAINER_RUNNING},
+	cntrs, err := cw.client.rtcl.ListContainers(ctx, &runtime.ListContainersRequest{
+		Filter: &runtime.ContainerFilter{
+			State: &runtime.ContainerStateValue{State: runtime.ContainerState_CONTAINER_RUNNING},
 		},
 	})
 	if err != nil {
@@ -145,7 +145,7 @@ func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, erro
 	}
 	containers := []*whalewatcher.Container{}
 	for _, cntr := range cntrs.Containers {
-		if cntr.State != runtimev1.ContainerState_CONTAINER_RUNNING {
+		if cntr.State != runtime.ContainerState_CONTAINER_RUNNING {
 			continue
 		}
 		wwcntr := cw.newContainer(ctx, cntr, nil)
@@ -157,8 +157,8 @@ func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, erro
 // Inspect (only) those container details of interest to us, given the name or
 // ID of a container.
 func (cw *CRIWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatcher.Container, error) {
-	cntrs, err := cw.client.rtcl.ListContainers(ctx, &runtimev1.ListContainersRequest{
-		Filter: &runtimev1.ContainerFilter{Id: nameorid},
+	cntrs, err := cw.client.rtcl.ListContainers(ctx, &runtime.ListContainersRequest{
+		Filter: &runtime.ContainerFilter{Id: nameorid},
 	})
 	if err != nil {
 		return nil, err
@@ -173,15 +173,15 @@ func (cw *CRIWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatch
 // not alive (with a process), then nil is returned instead.
 func (cw *CRIWatcher) newContainer(
 	ctx context.Context,
-	cntr *runtimev1.Container,
-	optPod *runtimev1.PodSandbox,
+	cntr *runtime.Container,
+	optPod *runtime.PodSandbox,
 ) *whalewatcher.Container {
-	if cntr.State != runtimev1.ContainerState_CONTAINER_RUNNING {
+	if cntr.State != runtime.ContainerState_CONTAINER_RUNNING {
 		return nil
 	}
 	// If we didn't get the related pod details, then we need to query them now.
-	pods, err := cw.client.rtcl.ListPodSandbox(ctx, &runtimev1.ListPodSandboxRequest{
-		Filter: &runtimev1.PodSandboxFilter{Id: cntr.PodSandboxId}})
+	pods, err := cw.client.rtcl.ListPodSandbox(ctx, &runtime.ListPodSandboxRequest{
+		Filter: &runtime.PodSandboxFilter{Id: cntr.PodSandboxId}})
 	if err != nil || len(pods.Items) != 1 {
 		return nil
 	}
@@ -190,7 +190,7 @@ func (cw *CRIWatcher) newContainer(
 	// container engines reveal container PIDs through the "info" element of
 	// the container status. Well, another round trip to the container
 	// engine, then. Thanks CRI for nothing.
-	status, err := cw.client.rtcl.ContainerStatus(ctx, &runtimev1.ContainerStatusRequest{
+	status, err := cw.client.rtcl.ContainerStatus(ctx, &runtime.ContainerStatusRequest{
 		ContainerId: cntr.Id,
 		Verbose:     true,
 	})
@@ -239,7 +239,7 @@ func (cw *CRIWatcher) LifecycleEvents(ctx context.Context) (
 	go func() {
 		defer close(cntrerrstream)
 		evcl, err := cw.client.rtcl.GetContainerEvents(ctx,
-			&runtimev1.GetEventsRequest{ /*nothing*/ })
+			&runtime.GetEventsRequest{ /*nothing*/ })
 		if err != nil {
 			cntrerrstream <- err
 			return
@@ -262,12 +262,12 @@ func (cw *CRIWatcher) LifecycleEvents(ctx context.Context) (
 			// PodSandboxStatus.Id. Please see also:
 			// https://github.com/containerd/containerd/blob/4d2c8879908285454a4006534cb0af82bb58a406/pkg/cri/server/sandbox_run.go#L506
 			switch ev.ContainerEventType {
-			case runtimev1.ContainerEventType_CONTAINER_STARTED_EVENT:
+			case runtime.ContainerEventType_CONTAINER_STARTED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
 					Type: engineclient.ContainerStarted,
 					ID:   ev.ContainerId,
 				}
-			case runtimev1.ContainerEventType_CONTAINER_STOPPED_EVENT:
+			case runtime.ContainerEventType_CONTAINER_STOPPED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
 					Type: engineclient.ContainerExited,
 					ID:   ev.ContainerId,

@@ -47,10 +47,13 @@ synchronized to the container engine state.
   labels, (un)pausing state, and optional (composer) project. See the
   [`whalewatcher.Container`](https://pkg.go.dev/github.com/thediveo/whalewatcher#Container)
   type for details.
-- supports different container engines:
+- supports multiple types of container engines:
   - [Docker/Moby](https://github.com/moby/moby).
   - plain [containerd](https://github.com/containerd/containerd).
-  - [cri-o](https://cri-o.io/) and [containerd](https://github.com/containerd/containerd) via the generic CRI pod event API.
+  - [cri-o](https://cri-o.io/) and [containerd](https://github.com/containerd/containerd) via the generic CRI pod event API. In principle, other container engines implementing the CRI pod event API should also work:
+    - sandbox container lifecycle events must be reported and not suppressed.
+    - sandbox and container PIDs must be reported by the verbose variant of the
+      container status API call in the PID field of the JSON info object.
   - Podman: use the Docker/Moby watcher. Due to several severe issues we're not
     supporting Podman's own API and have archived the sealwatcher _experiment_. More background information can be found in [alias podman=p.o.'d.man](http://thediveo.github.io/#/art/podman).
 - composer project-aware:
