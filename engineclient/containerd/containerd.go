@@ -174,10 +174,10 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 	taskAPI := cw.client.TaskService()
 	containers := []*whalewatcher.Container{}
 	for _, namespace := range spaces {
-		// Skip Docker's/moby's namespace, as this is managed by the Docker
-		// daemon and we cannot discover all relevant container information at
-		// the containerd level; namely, the container name (as opposed to its
-		// ID) is missing.
+		// Skip some namespaces, such as the Docker/moby and CRI/Kubernetes
+		// namespaces. The moby namespace is managed by the Docker daemon and we
+		// cannot discover all relevant container information at the containerd
+		// level; namely, the container name (as opposed to its ID) is missing.
 		if slices.Contains(cw.ignoredNamespaces, namespace) {
 			continue
 		}
