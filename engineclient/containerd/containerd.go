@@ -28,6 +28,7 @@ import (
 	"github.com/containerd/typeurl/v2"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -193,7 +194,12 @@ func (cw *ContainerdWatcher) List(ctx context.Context) ([]*whalewatcher.Containe
 		}
 		cntrlabels := map[string]map[string]string{}
 		for _, container := range cntrs {
-			cntrlabels[container.ID] = container.Labels
+			// Shallow clone the labels and ensure that the map isn't nil.
+			labels := maps.Clone(container.Labels)
+			if labels == nil {
+				labels = map[string]string{}
+			}
+			cntrlabels[container.ID] = labels
 		}
 		// Only now can we look for signs of container life...
 		tasks, err := taskAPI.List(nsctx, &tasks.ListTasksRequest{})
