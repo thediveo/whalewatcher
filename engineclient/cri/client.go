@@ -111,6 +111,7 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 	return cl, nil
 }
 
+// Close closes the underlying connection, if any.
 func (c *Client) Close() error {
 	if c.conn != nil {
 		return c.conn.Close()
@@ -118,10 +119,17 @@ func (c *Client) Close() error {
 	return nil
 }
 
+// RuntimeService returns the service client for calling CRI runtime services.
 func (c *Client) RuntimeService() runtimev1.RuntimeServiceClient {
 	return c.rtcl
 }
 
+// ImageService returns the service client for calling CRI image services.
 func (c *Client) ImageService() runtimev1.ImageServiceClient {
 	return c.imgcl
+}
+
+// Address returns the API endpoint address the connection points to.
+func (c *Client) Address() string {
+	return c.conn.Target()
 }
