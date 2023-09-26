@@ -144,6 +144,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 				cricl.Close()
 				cricl = nil
 			})
+			Expect(cricl.Address()).To(HaveSuffix(endpoint))
 
 			By("waiting for the CRI API to become fully operational", func() {
 				Eventually(ctx, func(ctx context.Context) error {

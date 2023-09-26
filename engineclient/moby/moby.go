@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"golang.org/x/exp/maps"
 )
 
 // Type specifies this container engine's type identifier.
@@ -175,10 +176,14 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 	if details.State == nil || details.State.Pid == 0 {
 		return nil, engineclient.NewProcesslessContainerError(nameorid, "Docker")
 	}
+	labels := maps.Clone(details.Config.Labels)
+	if labels == nil {
+		labels = map[string]string{}
+	}
 	cntr := &whalewatcher.Container{
 		ID:      details.ID,
 		Name:    details.Name[1:], // get rid off the leading slash
-		Labels:  details.Config.Labels,
+		Labels:  labels,
 		PID:     details.State.Pid,
 		Project: details.Config.Labels[ComposerProjectLabel],
 		Paused:  details.State.Paused,

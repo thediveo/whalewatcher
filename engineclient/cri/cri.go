@@ -225,7 +225,11 @@ func (cw *CRIWatcher) newContainer(
 		return nil
 	}
 
+	// Shallow clone the labels and ensure that the map isn't nil.
 	labels := maps.Clone(cntr.Labels)
+	if labels == nil {
+		labels = map[string]string{}
+	}
 	// Map annotations to the generic labels, using a unique key prefix to make
 	// them easily and deterministically detectable.
 	for key, value := range cntr.Annotations {
