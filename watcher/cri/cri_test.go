@@ -259,7 +259,7 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 				return []string{}
 			}
 			Eventually(portfolio).Within(5 * time.Second).ProbeEvery(250 * time.Millisecond).
-				Should(ConsistOf("hellorld"))
+				Should(ContainElement("hellorld"))
 
 			// and eventually that container should also be gone from the watch list
 			// after we killed it.
@@ -267,7 +267,8 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 			Expect(cric.RuntimeService().RemoveContainer(ctx, &runtime.RemoveContainerRequest{
 				ContainerId: podcntr.ContainerId,
 			})).Error().NotTo(HaveOccurred())
-			Eventually(portfolio).Should(BeEmpty())
+			Eventually(portfolio).Within(2 * time.Second).ProbeEvery(250 * time.Millisecond).
+				Should(Not(ContainElement("hellorld")))
 
 			// wait for the watcher to correctly spin down.
 			cancel()

@@ -123,14 +123,14 @@ func (p *ComposerProject) String() string {
 }
 
 // add a new container to a composer project. Silently ignore any attempt to add
-// an already existing container. Returns true if the container was newly added,
-// false if the container already exists.
+// an already existing container (same name and same identity). Returns true if
+// the container was newly added, false if the container already exists.
 func (p *ComposerProject) add(c *Container) bool {
 	p.m.Lock()
 	defer p.m.Unlock()
 
 	for _, cntr := range p.containers {
-		if cntr.Name == c.Name {
+		if cntr.Name == c.Name && cntr.ID == c.ID {
 			return false
 		}
 	}
@@ -138,9 +138,12 @@ func (p *ComposerProject) add(c *Container) bool {
 	return true
 }
 
-// remove the container identified by either name or ID from this composer
-// project. It returns the information about the removed container, if any, or
-// nil.
+// remove the container identified by either (preferably) ID or name from this
+// composer project. It returns the information about the removed container, if
+// any, or nil.
+//
+// Please note that in case of Kubernetes there can be multiple containers with
+// the same, but they differ in ID.
 func (p *ComposerProject) remove(nameid string) *Container {
 	p.m.Lock()
 	defer p.m.Unlock()

@@ -164,10 +164,10 @@ func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, erro
 	}
 	containers := []*whalewatcher.Container{}
 	for _, cntr := range cntrs.Containers {
-		if cntr.State != runtime.ContainerState_CONTAINER_RUNNING {
+		wwcntr := cw.newContainer(ctx, cntr, nil)
+		if wwcntr == nil {
 			continue
 		}
-		wwcntr := cw.newContainer(ctx, cntr, nil)
 		containers = append(containers, wwcntr)
 	}
 	// Now additionally list the sandbox containers and create container
@@ -182,6 +182,9 @@ func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, erro
 	}
 	for _, sandbox := range sandboxes.Items {
 		wwcntr := cw.newSandboxContainer(ctx, sandbox)
+		if wwcntr == nil {
+			continue
+		}
 		containers = append(containers, wwcntr)
 	}
 
@@ -197,10 +200,19 @@ func (cw *CRIWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatch
 	if err != nil {
 		return nil, err
 	}
-	if len(cntrs.Containers) != 1 {
-		return nil, fmt.Errorf("cannot inspect container with id %q", nameorid)
+	if len(cntrs.Containers) == 1 {
+		return cw.newContainer(ctx, cntrs.Containers[0], nil), nil
 	}
-	return cw.newContainer(ctx, cntrs.Containers[0], nil), nil
+	sandboxes, err := cw.client.rtcl.ListPodSandbox(ctx, &runtime.ListPodSandboxRequest{
+		Filter: &runtime.PodSandboxFilter{Id: nameorid},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(sandboxes.Items) == 1 {
+		return cw.newSandboxContainer(ctx, sandboxes.Items[0]), nil
+	}
+	return nil, fmt.Errorf("cannot inspect container with id %q", nameorid)
 }
 
 // newContainer returns the container details of interest to us. If the
@@ -263,6 +275,8 @@ func (cw *CRIWatcher) newContainer(
 	labels[PodNamespaceLabel] = pods.Items[0].Metadata.Namespace
 	labels[PodContainerNameLabel] = cntr.Metadata.Name
 
+	// If this happens to be a pod sandbox container (in the context of event
+	// processing), then mark it as such for convenience.
 	if cntr.Id == cntr.PodSandboxId {
 		labels[PodSandboxLabel] = "" // exact value doesn't matter
 	}
@@ -379,12 +393,12 @@ func (cw *CRIWatcher) LifecycleEvents(ctx context.Context) (
 			case runtime.ContainerEventType_CONTAINER_STARTED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
 					Type: engineclient.ContainerStarted,
-					ID:   ev.ContainerId,
+					ID:   ev.ContainerId, // use ID to be unambiguous
 				}
 			case runtime.ContainerEventType_CONTAINER_STOPPED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
 					Type: engineclient.ContainerExited,
-					ID:   ev.ContainerId,
+					ID:   ev.ContainerId, // use ID to be unambiguous
 				}
 			}
 		}

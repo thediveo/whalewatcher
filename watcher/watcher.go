@@ -21,6 +21,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"golang.org/x/exp/slices"
 )
 
 // Watcher allows keeping track of the currently alive containers of a container
@@ -459,21 +460,19 @@ func (ww *watcher) list(ctx context.Context) error {
 	ww.pfmux.RLock()
 	pf := ww.writeportfolio
 	ww.pfmux.RUnlock()
-nextpet:
 	for _, alive := range alives {
 		// Did the container die in between...? Then skip it and get another pet.
-		for _, bluenorwegian := range ww.bluenorwegians {
-			if bluenorwegian == alive.ID {
-				continue nextpet
-			}
+		if slices.Contains(ww.bluenorwegians, alive.ID) {
+			continue
 		}
 		// Otherwise, add the container we've found in the list to our
 		// portfolio; this is a "quick" operation without any trips to the
 		// container engine (we already did the "slow" and time-consuming bits
 		// before, such as inspecting the vontainer details).
-		if pf.Add(alive) {
-			ww.notify(engineclient.ContainerStarted, alive)
+		if !pf.Add(alive) {
+			continue
 		}
+		ww.notify(engineclient.ContainerStarted, alive)
 	}
 	// Play back any pending pause state changes that occurred while the listing
 	// was in progress; if any such pause state changes refer to deceased IDs,
