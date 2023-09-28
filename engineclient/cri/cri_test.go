@@ -237,6 +237,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 				ContainerId: podcntr.ContainerId,
 			})).Error().NotTo(HaveOccurred())
 
+			By("inspecting the container")
 			var cntr *whalewatcher.Container
 			Eventually(ctx, func() *whalewatcher.Container {
 				cntr = Successful(cw.Inspect(ctx, podcntr.ContainerId))
@@ -249,11 +250,26 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 			Expect(cntr.Labels).To(HaveKeyWithValue("foo", "bar"))
 			Expect(cntr.Labels).To(HaveKeyWithValue(AnnotationKeyPrefix+"fools", "barz"))
 
+			By("listing the container and the sandbox")
 			cntrs := Successful(cw.List(ctx))
-			Expect(cntrs).To(ContainElement(And(
-				HaveField("Name", "hellorld"),
-				HaveField("PID", cntr.PID),
-			)))
+			Expect(cntrs).To(ConsistOf(
+				And(
+					HaveField("Name", "hellorld"),
+					HaveField("PID", cntr.PID),
+					HaveField("Labels", And(
+						HaveKeyWithValue(PodNamespaceLabel, k8sTestNamespace),
+						HaveKeyWithValue(PodNameLabel, k8sTestPodName),
+						Not(HaveKey(PodSandboxLabel)),
+					)),
+				),
+				And(
+					HaveField("Labels", And(
+						HaveKeyWithValue(PodNamespaceLabel, k8sTestNamespace),
+						HaveKeyWithValue(PodNameLabel, k8sTestPodName),
+						HaveKeyWithValue(PodSandboxLabel, ""),
+					)),
+				),
+			))
 		})
 
 		It("watches", func(ctx context.Context) {
