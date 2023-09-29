@@ -145,11 +145,15 @@ func (cw *CRIWatcher) Close() {
 	cw.client.conn.Close()
 }
 
-// List all the currently alive and kicking containers. In case of the CRI API
-// this actually turns out to be a somewhat involved process, as the API has
-// been designed solely from the kubelet perspective and thus tends to become
-// unwieldly in other use cases.
+// List all the currently alive and kicking containers (including pod sandboxes,
+// which are also containers).
+//
+// In case of the CRI API this actually turns out to be a somewhat involved
+// process, as the API has been designed solely from the kubelet perspective and
+// thus tends to become unwieldly in other use cases.
 func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, error) {
+	// List all containers and find out which pods they belong to; this won't
+	// give us the sandbox containers though...
 	cntrs, err := cw.client.rtcl.ListContainers(ctx, &runtime.ListContainersRequest{
 		Filter: &runtime.ContainerFilter{
 			State: &runtime.ContainerStateValue{State: runtime.ContainerState_CONTAINER_RUNNING},
@@ -160,12 +164,30 @@ func (cw *CRIWatcher) List(ctx context.Context) ([]*whalewatcher.Container, erro
 	}
 	containers := []*whalewatcher.Container{}
 	for _, cntr := range cntrs.Containers {
-		if cntr.State != runtime.ContainerState_CONTAINER_RUNNING {
+		wwcntr := cw.newContainer(ctx, cntr, nil)
+		if wwcntr == nil {
 			continue
 		}
-		wwcntr := cw.newContainer(ctx, cntr, nil)
 		containers = append(containers, wwcntr)
 	}
+	// Now additionally list the sandbox containers and create container
+	// information for them too.
+	sandboxes, err := cw.client.rtcl.ListPodSandbox(ctx, &runtime.ListPodSandboxRequest{
+		Filter: &runtime.PodSandboxFilter{
+			State: &runtime.PodSandboxStateValue{State: runtime.PodSandboxState_SANDBOX_READY},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, sandbox := range sandboxes.Items {
+		wwcntr := cw.newSandboxContainer(ctx, sandbox)
+		if wwcntr == nil {
+			continue
+		}
+		containers = append(containers, wwcntr)
+	}
+
 	return containers, nil
 }
 
@@ -178,14 +200,26 @@ func (cw *CRIWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatch
 	if err != nil {
 		return nil, err
 	}
-	if len(cntrs.Containers) != 1 {
-		return nil, fmt.Errorf("cannot inspect container with id %q", nameorid)
+	if len(cntrs.Containers) == 1 {
+		return cw.newContainer(ctx, cntrs.Containers[0], nil), nil
 	}
-	return cw.newContainer(ctx, cntrs.Containers[0], nil), nil
+	sandboxes, err := cw.client.rtcl.ListPodSandbox(ctx, &runtime.ListPodSandboxRequest{
+		Filter: &runtime.PodSandboxFilter{Id: nameorid},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(sandboxes.Items) == 1 {
+		return cw.newSandboxContainer(ctx, sandboxes.Items[0]), nil
+	}
+	return nil, fmt.Errorf("cannot inspect container with id %q", nameorid)
 }
 
-// newContainer returns the container details of interest to us. If the container is
-// not alive (with a process), then nil is returned instead.
+// newContainer returns the container details of interest to us. If the
+// container is not alive (with a process), then nil is returned instead. If the
+// pod sandbox is already known, it can be passed in to avoid an additional CRI
+// API roundtrip in order to determine the pod meta data, especially the pod
+// name and namespace.
 func (cw *CRIWatcher) newContainer(
 	ctx context.Context,
 	cntr *runtime.Container,
@@ -241,13 +275,78 @@ func (cw *CRIWatcher) newContainer(
 	labels[PodNamespaceLabel] = pods.Items[0].Metadata.Namespace
 	labels[PodContainerNameLabel] = cntr.Metadata.Name
 
+	// If this happens to be a pod sandbox container (in the context of event
+	// processing), then mark it as such for convenience.
 	if cntr.Id == cntr.PodSandboxId {
-		labels[cntr.PodSandboxId] = "" // exact value doesn't matter
+		labels[PodSandboxLabel] = "" // exact value doesn't matter
 	}
 
 	return &whalewatcher.Container{
 		ID:     cntr.Id,
 		Name:   cntr.Metadata.Name,
+		Labels: labels,
+		PID:    innerInfo.PID,
+		Paused: false, // there is no pause notion in Kubernetes
+	}
+}
+
+// newSandboxContainer returns the container details of a pod sandbox of
+// interest to us. This is similar to newContainer, but instead is required when
+// dealing with the sandbox containers; these are separate from the ordinary
+// workload containers in the CRI API architecture.
+func (cw *CRIWatcher) newSandboxContainer(
+	ctx context.Context,
+	sandbox *runtime.PodSandbox,
+) *whalewatcher.Container {
+	if sandbox.State != runtime.PodSandboxState_SANDBOX_READY {
+		return nil
+	}
+	// We still don't know this sandbox container's PID and the CRI API actually
+	// doesn't provide it anywhere. Instead, at least some CRI-supporting
+	// container engines reveal container PIDs through the "info" element of the
+	// container status. Well, another round trip to the container engine, then.
+	// Thanks CRI for nothing.
+	status, err := cw.client.rtcl.PodSandboxStatus(ctx, &runtime.PodSandboxStatusRequest{
+		PodSandboxId: sandbox.Id,
+		Verbose:      true,
+	})
+	if err != nil {
+		return nil
+	}
+	// Please note that the "info" element inside the verbose information
+	// element uses JSON textual representation. This *is* convoluted.
+	info := status.Info["info"]
+	if info == "" {
+		return nil
+	}
+	var innerInfo struct {
+		PID int `json:"pid"`
+	}
+	if err := json.Unmarshal([]byte(info), &innerInfo); err != nil {
+		return nil
+	}
+
+	// Shallow clone the labels and ensure that the map isn't nil.
+	labels := maps.Clone(sandbox.Labels)
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	// Map annotations to the generic labels, using a unique key prefix to make
+	// them easily and deterministically detectable.
+	for key, value := range sandbox.Annotations {
+		labels[AnnotationKeyPrefix+key] = value
+	}
+
+	labels[PodUidLabel] = sandbox.Metadata.Uid
+	labels[PodNameLabel] = sandbox.Metadata.Name
+	labels[PodNamespaceLabel] = sandbox.Metadata.Namespace
+	labels[PodContainerNameLabel] = sandbox.Id
+
+	labels[PodSandboxLabel] = "" // exact value doesn't matter
+
+	return &whalewatcher.Container{
+		ID:     sandbox.Id,
+		Name:   sandbox.Id,
 		Labels: labels,
 		PID:    innerInfo.PID,
 		Paused: false, // there is no pause notion in Kubernetes
@@ -294,12 +393,12 @@ func (cw *CRIWatcher) LifecycleEvents(ctx context.Context) (
 			case runtime.ContainerEventType_CONTAINER_STARTED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
 					Type: engineclient.ContainerStarted,
-					ID:   ev.ContainerId,
+					ID:   ev.ContainerId, // use ID to be unambiguous
 				}
 			case runtime.ContainerEventType_CONTAINER_STOPPED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
 					Type: engineclient.ContainerExited,
-					ID:   ev.ContainerId,
+					ID:   ev.ContainerId, // use ID to be unambiguous
 				}
 			}
 		}

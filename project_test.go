@@ -50,7 +50,7 @@ var _ = Describe("composer project proxy", func() {
 
 		p.add(&Container{Name: "furious_furuncle", ID: "1"})
 		p.add(&Container{Name: "mad_moby"})
-		p.add(&Container{Name: "furious_furuncle", ID: "2"})
+		p.add(&Container{Name: "furious_furuncle", ID: "1"})
 
 		Expect(p.Containers()).To(HaveLen(2))
 		Expect(p.ContainerNames()).To(ConsistOf(
@@ -59,6 +59,28 @@ var _ = Describe("composer project proxy", func() {
 			HaveField("Name", Equal("furious_furuncle")),
 			HaveField("ID", Equal("1")),
 		))))
+	})
+
+	It("differentiates containers by name and ID", func() {
+		p := newComposerProject("gnampf")
+		Expect(p).NotTo(BeNil())
+
+		p.add(&Container{Name: "furious_furuncle", ID: "1"})
+		p.add(&Container{Name: "furious_furuncle", ID: "2"})
+
+		Expect(p.Containers()).To(HaveLen(2))
+		Expect(p.ContainerNames()).To(ConsistOf(
+			"furious_furuncle", "furious_furuncle"))
+		Expect(p.Containers()).To(ContainElements(
+			HaveValue(And(
+				HaveField("Name", Equal("furious_furuncle")),
+				HaveField("ID", Equal("1")),
+			)),
+			HaveValue(And(
+				HaveField("Name", Equal("furious_furuncle")),
+				HaveField("ID", Equal("2")),
+			)),
+		))
 	})
 
 	It("removes containers", func() {
