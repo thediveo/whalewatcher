@@ -16,26 +16,26 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/containerd/containerd v1.7.5
+	github.com/containerd/containerd v1.7.6
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v24.0.6+incompatible
-	github.com/onsi/ginkgo/v2 v2.12.0
-	github.com/onsi/gomega v1.27.10
-	github.com/opencontainers/image-spec v1.1.0-rc4
+	github.com/onsi/ginkgo/v2 v2.12.1
+	github.com/onsi/gomega v1.28.0
+	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/pkg/errors v0.9.1
 	github.com/thediveo/fdooze v0.3.0
 	github.com/thediveo/once v0.9.0
 	github.com/thediveo/success v1.0.1
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
-	google.golang.org/grpc v1.58.0
-	k8s.io/cri-api v0.28.1
+	google.golang.org/grpc v1.58.2
+	k8s.io/cri-api v0.28.2
 )
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/Microsoft/hcsshim v0.10.0-rc.8 // indirect
+	github.com/Microsoft/hcsshim v0.11.0 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/containerd/continuity v0.4.2 // indirect
