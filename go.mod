@@ -2,6 +2,8 @@ module github.com/thediveo/whalewatcher
 
 go 1.20
 
+toolchain go1.21.5
+
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
@@ -33,7 +35,7 @@ require (
 	github.com/thediveo/success v1.0.2
 	golang.org/x/exp v0.0.0-20231226003508-02704c960a9b
 	google.golang.org/grpc v1.60.1
-	k8s.io/cri-api v0.29.0
+	k8s.io/cri-api v0.28.5
 )
 
 require (

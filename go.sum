@@ -334,5 +334,5 @@ gotest.tools/v3 v3.0.2/go.mod h1:3SzNCllyD9/Y+b5r9JIKQ474KzkZyqLqEfYqMsX94Bk=
 gotest.tools/v3 v3.3.0 h1:MfDY1b1/0xN1CyMlQDac0ziEy9zJQd9CXBRRDHw2jJo=
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
-k8s.io/cri-api v0.29.0 h1:atenAqOltRsFqcCQlFFpDnl/R4aGfOELoNLTDJfd7t8=
-k8s.io/cri-api v0.29.0/go.mod h1:Rls2JoVwfC7kW3tndm7267kriuRukQ02qfht0PCRuIc=
+k8s.io/cri-api v0.28.5 h1:5TgjH4tbCqRJqtfkU/EInHNDCHfqI7b0oTqApBn23Lk=
+k8s.io/cri-api v0.28.5/go.mod h1:QaLIWi4Ejw0uHZlGRUIDmc2IlNlwc9Wp4gb6tEjeQCs=
