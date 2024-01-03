@@ -88,6 +88,13 @@ var _ = Describe("moby engineclient", func() {
 		})
 	})
 
+	It("can change its type", func() {
+		mm := mockingmoby.NewMockingMoby()
+		ec := NewMobyWatcher(mm, WithPID(123456), WithDemonType("mobyproject.org"))
+		defer ec.Close()
+		Expect(ec.Type()).To(Equal("mobyproject.org"))
+	})
+
 	It("has engine type ID and API path", func() {
 		Expect(ec.Type()).To(Equal(Type))
 		Expect(ec.API()).NotTo(BeEmpty())
