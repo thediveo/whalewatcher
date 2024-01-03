@@ -52,9 +52,10 @@ type MobyAPIClient interface {
 // MobyWatcher is a Docker-engine EngineClient for interfacing the generic whale
 // watching with Docker daemons.
 type MobyWatcher struct {
-	pid    int                         // optional engine PID when known.
-	moby   MobyAPIClient               // (minimal) moby engine API client.
-	packer engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
+	pid       int                         // optional engine PID when known.
+	moby      MobyAPIClient               // (minimal) moby engine API client.
+	packer    engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
+	demontype string                      // allow overriding the Docker type for API-compatible engines.
 }
 
 // Make sure that the EngineClient and Preflighter interfaces are fully implemented.
@@ -66,7 +67,8 @@ var _ (engineclient.Preflighter) = (*MobyWatcher)(nil)
 // unit tests and instead use watcher.moby.New instead in most use cases.
 func NewMobyWatcher(moby MobyAPIClient, opts ...NewOption) *MobyWatcher {
 	mw := &MobyWatcher{
-		moby: moby,
+		moby:      moby,
+		demontype: Type,
 	}
 	for _, opt := range opts {
 		opt(mw)
@@ -82,6 +84,14 @@ type NewOption func(*MobyWatcher)
 func WithPID(pid int) NewOption {
 	return func(mw *MobyWatcher) {
 		mw.pid = pid
+	}
+}
+
+// WithDemonType overrides the default “docker.com” engine type for other,
+// Docker API-compatible container engines.
+func WithDemonType(pseudonym string) NewOption {
+	return func(mw *MobyWatcher) {
+		mw.demontype = pseudonym
 	}
 }
 
@@ -106,7 +116,7 @@ func (mw *MobyWatcher) ID(ctx context.Context) string {
 }
 
 // Type returns the type identifier for this container engine.
-func (mw *MobyWatcher) Type() string { return Type }
+func (mw *MobyWatcher) Type() string { return mw.demontype }
 
 // Version information about the engine.
 func (mw *MobyWatcher) Version(ctx context.Context) string {
