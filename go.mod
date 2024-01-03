@@ -1,8 +1,6 @@
 module github.com/thediveo/whalewatcher
 
-go 1.21
-
-toolchain go1.21.5
+go 1.20
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
