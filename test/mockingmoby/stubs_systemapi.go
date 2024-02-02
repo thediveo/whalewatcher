@@ -22,7 +22,7 @@ import (
 )
 
 // RegistryLogin is not implemented.
-func (mm *MockingMoby) RegistryLogin(ctx context.Context, auth types.AuthConfig) (registry.AuthenticateOKBody, error) {
+func (mm *MockingMoby) RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error) {
 	return registry.AuthenticateOKBody{}, errNotImplemented
 }
 

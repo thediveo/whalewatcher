@@ -15,10 +15,13 @@
 package cri
 
 import (
+	"context"
 	"os"
 	"syscall"
 
-	"github.com/ory/dockertest/v3"
+	"github.com/thediveo/morbyd"
+	"github.com/thediveo/morbyd/run"
+	"github.com/thediveo/morbyd/session"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -42,43 +45,47 @@ var _ = Describe("hostname", Ordered, func() {
 		Expect(hostname(0)).To(Equal(Successful(os.Hostname())))
 	})
 
-	It("reads from other UTS namespace", func() {
-		By("creating a canary container")
-		pool := Successful(dockertest.NewPool("unix:///var/run/docker.sock"))
-		_ = pool.RemoveContainerByName(testName)
-		canaryCntr := Successful(pool.RunWithOptions(
-			&dockertest.RunOptions{
-				Name:       testName,
-				Repository: "busybox",
-				Hostname:   testHostname,
-				Cmd: []string{
-					"/bin/sh",
-					"-c",
-					"mkdir -p /www && echo Hellorld!>/www/index.html && httpd -f -p 5099 -h /www",
-				},
-			}))
-		DeferCleanup(func() {
-			By("removing the canary container")
-			Expect(pool.Purge(canaryCntr)).To(Succeed())
+	It("reads from other UTS namespace", func(ctx context.Context) {
+		By("creating a new Docker session for testing")
+		sess := Successful(morbyd.NewSession(ctx,
+			session.WithAutoCleaning("test.whalewatcher=engineclient/cri")))
+		DeferCleanup(func(ctx context.Context) {
+			By("auto-cleaning the session")
+			sess.Close(ctx)
 		})
 
+		By("creating a canary container")
+		canaryCntr := Successful(sess.Run(ctx,
+			"busybox",
+			run.WithName(testName),
+			run.WithAutoRemove(),
+			run.WithHostname(testHostname),
+			run.WithCommand(
+				"/bin/sh",
+				"-c",
+				"mkdir -p /www && echo Hellorld!>/www/index.html && "+
+					"httpd -f -p 5099 -h /www",
+			),
+		))
+
 		By("visiting other UTS and reading its hostname")
-		visitUTS(canaryCntr.Container.State.Pid, func() {
+		pid := Successful(canaryCntr.PID(ctx))
+		visitUTS(pid, func() {
 			GinkgoHelper()
 			Expect(os.Hostname()).To(Equal(testHostname))
 		})
 		Expect(os.Hostname()).NotTo(Equal(testHostname), "UTS namespace spill-over")
 
 		By("calling our hostname()")
-		Expect(hostname(canaryCntr.Container.State.Pid)).To(Equal(testHostname))
+		Expect(hostname(pid)).To(Equal(testHostname))
 
 		By("removing the UTS hostname")
-		visitUTS(canaryCntr.Container.State.Pid, func() {
+		visitUTS(pid, func() {
 			GinkgoHelper()
 			Expect(syscall.Sethostname([]byte(""))).To(Succeed())
 		})
 		By("calling our hostname()")
-		Expect(hostname(canaryCntr.Container.State.Pid)).To(Equal(testHostname))
+		Expect(hostname(pid)).To(Equal(testHostname))
 	})
 
 })

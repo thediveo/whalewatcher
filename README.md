@@ -60,10 +60,12 @@ synchronized to the container engine state.
     - sandbox container lifecycle events must be reported and not suppressed.
     - sandbox and container PIDs must be reported by the verbose variant of the
       container status API call in the PID field of the JSON info object.
-  - Podman: **use the Docker/Moby watcher.** Due to several severe issues we're
-    not supporting Podman's own API any longer and have archived the sealwatcher
-    _experiment_. More background information can be found in [alias
-    podman=p.o.'d.man](http://thediveo.github.io/#/art/podman).
+  - Podman: **use the Docker/Moby watcher.** Due to several serious unfixed
+    issues we're not supporting Podman's own API any longer and have archived
+    the sealwatcher _experiment_. More background information can be found in
+    [alias podman=p.o.'d.man](http://thediveo.github.io/#/art/podman). To
+    paraphrase the podman project's answer: _if you need a stable API, use the
+    Docker API_. Got that.
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
   - [nerdctl](https://github.com/containerd/nerdctl)
@@ -225,5 +227,5 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Copyright and License
 
-`whalewatcher` is Copyright 2021, 2023 Harald Albrecht, licensed under the
+`whalewatcher` is Copyright 2021, 2024 Harald Albrecht, licensed under the
 Apache License, Version 2.0.

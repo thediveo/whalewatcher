@@ -43,7 +43,7 @@ var _ = Describe("mocked event streaming", func() {
 		mm.AddContainer(furiousFuruncle)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Type":   Equal(events.ContainerEventType),
-			"Action": Equal("start"),
+			"Action": Equal(events.Action("start")),
 			"Scope":  Equal("local"),
 			"Actor": MatchFields(IgnoreExtras, Fields{
 				"ID": Equal(furiousFuruncle.ID),
@@ -58,7 +58,7 @@ var _ = Describe("mocked event streaming", func() {
 		mm.PauseContainer(furiousFuruncle.Name)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Type":   Equal(events.ContainerEventType),
-			"Action": Equal("pause"),
+			"Action": Equal(events.Action("pause")),
 			"Scope":  Equal("local"),
 			"Actor": MatchFields(IgnoreExtras, Fields{
 				"ID": Equal(furiousFuruncle.ID),
@@ -74,7 +74,7 @@ var _ = Describe("mocked event streaming", func() {
 		mm.UnpauseContainer(furiousFuruncle.Name)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Type":   Equal(events.ContainerEventType),
-			"Action": Equal("unpause"),
+			"Action": Equal(events.Action("unpause")),
 			"Scope":  Equal("local"),
 			"Actor": MatchFields(IgnoreExtras, Fields{
 				"ID": Equal(furiousFuruncle.ID),
@@ -90,7 +90,7 @@ var _ = Describe("mocked event streaming", func() {
 		mm.RemoveContainer(furiousFuruncle.ID)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
 			"Type":   Equal(events.ContainerEventType),
-			"Action": Equal("die"),
+			"Action": Equal(events.Action("die")),
 			"Scope":  Equal("local"),
 			"Actor": MatchFields(IgnoreExtras, Fields{
 				"ID": Equal(furiousFuruncle.ID),
@@ -107,7 +107,7 @@ var _ = Describe("mocked event streaming", func() {
 		Consistently(errs).ShouldNot(Receive())
 		mm.StopContainer(furiousFuruncle.ID)
 		Eventually(evs).Should(Receive(MatchFields(IgnoreExtras, Fields{
-			"Action": Equal("die"),
+			"Action": Equal(events.Action("die")),
 			"Actor": MatchFields(IgnoreExtras, Fields{
 				"ID": Equal(furiousFuruncle.ID),
 			}),
