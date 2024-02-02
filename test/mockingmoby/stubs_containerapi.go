@@ -42,7 +42,7 @@ func (mm *MockingMoby) ContainerCreate(ctx context.Context, config *containertyp
 }
 
 // ContainerDiff is not implemented.
-func (mm *MockingMoby) ContainerDiff(ctx context.Context, container string) ([]containertypes.ContainerChangeResponseItem, error) {
+func (mm *MockingMoby) ContainerDiff(ctx context.Context, container string) ([]container.FilesystemChange, error) {
 	return nil, errNotImplemented
 }
 

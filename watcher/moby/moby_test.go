@@ -21,7 +21,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/ory/dockertest/v3"
+	"github.com/thediveo/morbyd"
+	"github.com/thediveo/morbyd/run"
+	"github.com/thediveo/morbyd/session"
 	"github.com/thediveo/whalewatcher/engineclient/moby"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -85,27 +87,28 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 		Expect(mw.PID()).To(Equal(123456))
 		defer mw.Close()
 
-		ctx, cancel := context.WithCancel(ctx)
+		wctx, cancel := context.WithCancel(ctx)
 		done := make(chan struct{})
 		go func() {
-			_ = mw.Watch(ctx)
+			_ = mw.Watch(wctx)
 			close(done)
 		}()
 		Consistently(done, "1s").ShouldNot(BeClosed())
 
-		pool := Successful(dockertest.NewPool("unix:///var/run/docker.sock"))
-		cntr := Successful(pool.RunWithOptions(&dockertest.RunOptions{
-			Repository: "busybox",
-			// ...here, we don't care about the name here, as long as we get a
-			// fresh container.
-			Tag: "latest",
-			Cmd: []string{"/bin/sleep", "30s"},
-			Labels: map[string]string{
-				"com.docker.compose.project": "whalewatcher_whackywhale",
-			},
-		}))
+		By("creating a new Docker session for testing")
+		sess := Successful(morbyd.NewSession(ctx,
+			session.WithAutoCleaning("test.whalewatcher=watcher/moby")))
+		DeferCleanup(func(ctx context.Context) {
+			By("auto-cleaning the session")
+			sess.Close(ctx)
+		})
+		cntr := Successful(sess.Run(ctx, "busybox",
+			run.WithAutoRemove(),
+			run.WithCommand("/bin/sh", "-c", "while true; do sleep 1; done"),
+			run.WithLabel("com.docker.compose.project=whalewatcher_whackywhale")))
+
 		var purge sync.Once
-		defer purge.Do(func() { _ = pool.Purge(cntr) })
+		defer purge.Do(func() { cntr.Kill(ctx) })
 
 		// eventually there should be a container poping up with the correct
 		// composer project label.
@@ -115,12 +118,12 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 			}
 			return []string{}
 		}
-		Eventually(portfolio).Should(ConsistOf(cntr.Container.Name[1:]))
+		Eventually(portfolio).Should(ConsistOf(cntr.Name))
 
 		// and eventually that container should also be gone from the watch list
 		// after we killed it.
 		purge.Do(func() {
-			Expect(pool.Purge(cntr)).To(Succeed())
+			cntr.Kill(ctx)
 		})
 		Eventually(portfolio).Should(BeEmpty())
 

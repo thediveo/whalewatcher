@@ -109,7 +109,6 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			By("creating a new Docker session for testing")
 			sess = Successful(morbyd.NewSession(ctx)) // no auto-clean
 			DeferCleanup(func(ctx context.Context) {
-				By("auto-cleaning the session")
 				sess.Close(ctx)
 			})
 

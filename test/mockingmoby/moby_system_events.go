@@ -83,7 +83,7 @@ func (mm *MockingMoby) containerEvent(action string, actor events.Actor) {
 	if evs != nil {
 		evs <- events.Message{
 			Type:   events.ContainerEventType,
-			Action: action,
+			Action: events.Action(action),
 			Actor:  actor,
 			Scope:  "local",
 		}
