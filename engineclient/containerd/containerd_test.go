@@ -17,17 +17,18 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	"github.com/thediveo/morbyd"
+	"github.com/thediveo/morbyd/build"
+	"github.com/thediveo/morbyd/exec"
+	"github.com/thediveo/morbyd/run"
+	"github.com/thediveo/morbyd/timestamper"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
-	"github.com/thediveo/whalewatcher/engineclient/containerd/test/ctr"
 	"github.com/thediveo/whalewatcher/engineclient/containerd/test/img"
 	"github.com/thediveo/whalewatcher/test"
 
@@ -86,8 +87,9 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 
 	Context("using real engine", func() {
 
+		var sess *morbyd.Session
 		var endpointPath string
-		var providerCntr *dockertest.Resource
+		var providerCntr *morbyd.Container
 
 		BeforeAll(func(ctx context.Context) {
 			if os.Getuid() != 0 {
@@ -99,22 +101,23 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			// that the containerd client doesn't leak go routines.
 			goodfds := Filedescriptors()
 			DeferCleanup(func() {
-				Eventually(Goroutines).Within(2 * time.Second).ProbeEvery(250 * time.Millisecond).
+				Eventually(Goroutines).Within(5 * time.Second).ProbeEvery(250 * time.Millisecond).
 					ShouldNot(HaveLeaked())
 				Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
 			})
 
+			By("creating a new Docker session for testing")
+			sess = Successful(morbyd.NewSession(ctx)) // no auto-clean
+			DeferCleanup(func(ctx context.Context) {
+				sess.Close(ctx)
+			})
+
 			By("spinning up a Docker container with stand-alone containerd, courtesy of the KinD k8s sig")
-			pool := Successful(dockertest.NewPool("unix:///var/run/docker.sock"))
-			_ = pool.RemoveContainerByName(kindischName)
 			// The necessary container start arguments come from KinD's Docker node
 			// provisioner, see:
 			// https://github.com/kubernetes-sigs/kind/blob/3610f606516ccaa88aa098465d8c13af70937050/pkg/cluster/internal/providers/docker/provision.go#L133
 			//
 			// Please note that --privileged already implies switching off AppArmor.
-			//
-			// Please note further, that currently some Docker client CLI flags
-			// don't translate into dockertest-supported options.
 			//
 			// docker run -it --rm --name kindisch-...
 			//   --privileged
@@ -127,47 +130,35 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			//   --volume /var
 			//   --volume /lib/modules:/lib/modules:ro
 			//   kindisch-...
-			Expect(pool.Client.BuildImage(docker.BuildImageOptions{
-				Name:       img.Name,
-				ContextDir: "./test/_kindisch", // sorry, couldn't resist the pun.
-				Dockerfile: "Dockerfile",
-				BuildArgs: []docker.BuildArg{
-					{Name: "KINDEST_BASE_TAG", Value: test.KindestBaseImageTag},
-				},
-				OutputStream: io.Discard,
-			})).To(Succeed())
-			providerCntr = Successful(pool.RunWithOptions(
-				&dockertest.RunOptions{
-					Name:       kindischName,
-					Repository: img.Name,
-					Privileged: true,
-					Mounts: []string{
-						"/var", // well, this actually is an unnamed volume
-						"/dev/mapper:/dev/mapper",
-						"/lib/modules:/lib/modules:ro",
-					},
-					Tty: true,
-				}, func(hc *docker.HostConfig) {
-					hc.Init = false
-					hc.Tmpfs = map[string]string{
-						"/tmp": "",
-						"/run": "",
-					}
-					hc.Devices = []docker.Device{
-						{PathOnHost: "/dev/fuse"},
-					}
-				}))
-			DeferCleanup(func() {
-				By("removing the containerd Docker container")
-				Expect(pool.Purge(providerCntr)).To(Succeed())
+			Expect(sess.BuildImage(ctx, "./test/_kindisch",
+				build.WithTag(img.Name),
+				build.WithBuildArg("KINDEST_BASE_TAG="+test.KindestBaseImageTag),
+				build.WithOutput(timestamper.New(GinkgoWriter)))).
+				Error().NotTo(HaveOccurred())
+			providerCntr = Successful(sess.Run(ctx, img.Name,
+				run.WithName(kindischName),
+				run.WithAutoRemove(),
+				run.WithPrivileged(),
+				run.WithSecurityOpt("label=disable"),
+				run.WithCgroupnsMode("private"),
+				run.WithVolume("/var"),
+				run.WithVolume("/dev/mapper:/dev/mapper"),
+				run.WithVolume("/lib/modules:/lib/modules:ro"),
+				run.WithTmpfs("/tmp"),
+				run.WithTmpfs("/run"),
+				run.WithDevice("/dev/fuse"),
+				run.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			DeferCleanup(func(ctx context.Context) {
+				By("removing the test container")
+				providerCntr.Kill(ctx)
 			})
 
 			By("waiting for containerized containerd to become responsive")
-			Expect(providerCntr.Container.State.Pid).NotTo(BeZero())
+			pid := Successful(providerCntr.PID(ctx))
 			// apipath must not include absolute symbolic links, but already be
 			// properly resolved.
 			endpointPath = fmt.Sprintf("/proc/%d/root%s",
-				providerCntr.Container.State.Pid, "/run/containerd/containerd.sock")
+				pid, "/run/containerd/containerd.sock")
 			var cdclient *containerd.Client
 			Eventually(func() error {
 				var err error
@@ -177,15 +168,19 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			}).Within(30*time.Second).ProbeEvery(1*time.Second).
 				Should(Succeed(), "containerd API never became responsive")
 			cdclient.Close() // not needed anymore, will create fresh ones over and over again
+
+			By("setup completed")
 		})
 
 		var cdclient *containerd.Client
 
 		BeforeEach(func() {
+			goodgos := Goroutines()
 			goodfds := Filedescriptors()
-			DeferCleanup(func() {
+			DeferCleanup(func(ctx context.Context) {
+				sess.Close(ctx)
 				Eventually(Goroutines).Within(2 * time.Second).ProbeEvery(250 * time.Millisecond).
-					ShouldNot(HaveLeaked())
+					ShouldNot(HaveLeaked(goodgos))
 				Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
 			})
 
@@ -246,26 +241,38 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			wwctx := namespaces.WithNamespace(ctx, testNamespace)
 
 			By("pulling a busybox image (if necessary)")
-			ctr.Successfully(providerCntr,
-				"-n", testNamespace,
-				"image", "pull", testImageRef)
+			ctr := Successful(providerCntr.Exec(ctx,
+				exec.Command("ctr",
+					"-n", testNamespace,
+					"image", "pull", testImageRef),
+				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			Expect(ctr.Wait(ctx)).To(BeZero())
 
 			By("creating a new container+task and starting it")
-			ctr.Successfully(providerCntr,
-				"-n", testNamespace,
-				"run", "-d",
-				"--label", "foo=bar",
-				"--label", NerdctlNameLabel+"=rappelfatz",
-				testImageRef,
-				testContainerName,
-				"/bin/sleep", "30s")
-			DeferCleanup(func() {
-				_ = ctr.Exec(providerCntr,
+			ctr = Successful(providerCntr.Exec(ctx,
+				exec.Command("ctr",
 					"-n", testNamespace,
-					"task", "rm", "-f", testContainerName)
-				_ = ctr.Exec(providerCntr,
-					"-n", testNamespace,
-					"container", "rm", testContainerName)
+					"run", "-d",
+					"--label", "foo=bar",
+					"--label", NerdctlNameLabel+"=rappelfatz",
+					testImageRef,
+					testContainerName,
+					"/bin/sleep", "30s"),
+				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			Expect(ctr.Wait(ctx)).To(BeZero())
+			DeferCleanup(func(ctx context.Context) {
+				ctr := Successful(providerCntr.Exec(ctx,
+					exec.Command("ctr",
+						"-n", testNamespace,
+						"task", "rm", "-f", testContainerName),
+					exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+				_, _ = ctr.Wait(ctx)
+				ctr = Successful(providerCntr.Exec(ctx,
+					exec.Command("ctr",
+						"-n", testNamespace,
+						"container", "rm", testContainerName),
+					exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+				_, _ = ctr.Wait(ctx)
 			})
 
 			By("receiving the newly started container/task event")
@@ -294,9 +301,12 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			Expect(container.Rucksack).NotTo(BeNil())
 
 			By("pausing container/task")
-			ctr.Successfully(providerCntr,
-				"-n", testNamespace,
-				"task", "pause", testContainerName)
+			ctr = Successful(providerCntr.Exec(ctx,
+				exec.Command("ctr",
+					"-n", testNamespace,
+					"task", "pause", testContainerName),
+				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			Expect(ctr.Wait(ctx)).To(BeZero())
 			Eventually(evs).Should(Receive(And(
 				HaveEventType(engineclient.ContainerPaused),
 				HaveID(testNamespace+"/"+testContainerName),
@@ -305,9 +315,12 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			Expect(c.Paused).To(BeTrue())
 
 			By("unpausing container/task")
-			ctr.Successfully(providerCntr,
-				"-n", testNamespace,
-				"task", "resume", testContainerName)
+			ctr = Successful(providerCntr.Exec(ctx,
+				exec.Command("ctr",
+					"-n", testNamespace,
+					"task", "resume", testContainerName),
+				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			Expect(ctr.Wait(ctx)).To(BeZero())
 			Eventually(evs).Should(Receive(And(
 				HaveEventType(engineclient.ContainerUnpaused),
 				HaveID(testNamespace+"/"+testContainerName),
@@ -316,9 +329,12 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			Expect(c.Paused).To(BeFalse())
 
 			By("deleting container/task")
-			ctr.Successfully(providerCntr,
-				"-n", testNamespace,
-				"task", "rm", "-f", testContainerName)
+			ctr = Successful(providerCntr.Exec(ctx,
+				exec.Command("ctr",
+					"-n", testNamespace,
+					"task", "rm", "-f", testContainerName),
+				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			Expect(ctr.Wait(ctx)).To(BeZero())
 
 			By("receiving container/task exit event")
 			// We should see or have seen the corresponding task exit event...
@@ -344,24 +360,33 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			wwctx := namespaces.WithNamespace(ctx, testNamespace)
 
 			By("pulling a busybox image (if necessary)")
-			ctr.Successfully(providerCntr,
-				"-n", testNamespace,
-				"image", "pull", testImageRef)
+			ctr := Successful(providerCntr.Exec(ctx,
+				exec.Command("ctr",
+					"-n", testNamespace,
+					"image", "pull", testImageRef),
+				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			Expect(ctr.Wait(ctx)).To(BeZero())
 
 			By("creating a new container, but not starting it")
-			ctr.Successfully(providerCntr,
-				"-n", testNamespace,
-				"container", "create",
-				"--label", "foo=bar",
-				"--label", NerdctlNameLabel+"=rappelfatz",
-				testImageRef,
-				testContainerName,
-				"/bin/sleep", "30s")
-
-			DeferCleanup(func() {
-				_ = ctr.Exec(providerCntr,
+			ctr = Successful(providerCntr.Exec(ctx,
+				exec.Command("ctr",
 					"-n", testNamespace,
-					"container", "rm", testContainerName)
+					"container", "create",
+					"--label", "foo=bar",
+					"--label", NerdctlNameLabel+"=rappelfatz",
+					testImageRef,
+					testContainerName,
+					"/bin/sleep", "30s"),
+				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+			Expect(ctr.Wait(ctx)).To(BeZero())
+
+			DeferCleanup(func(ctx context.Context) {
+				ctr := Successful(providerCntr.Exec(ctx,
+					exec.Command("ctr",
+						"-n", testNamespace,
+						"container", "rm", testContainerName),
+					exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+				_, _ = ctr.Wait(ctx)
 			})
 
 			Expect(cw.Inspect(wwctx, testNamespace+"/"+testContainerName)).Error().
@@ -388,26 +413,38 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 				wwctx := namespaces.WithNamespace(ctx, mobyns)
 
 				By("pulling a busybox image (if not already available locally)")
-				ctr.Successfully(providerCntr,
-					"-n", mobyns,
-					"image", "pull", testImageRef)
+				ctr := Successful(providerCntr.Exec(ctx,
+					exec.Command("ctr",
+						"-n", mobyns,
+						"image", "pull", testImageRef),
+					exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+				Expect(ctr.Wait(ctx)).To(BeZero())
 
 				By("creating a new container+task and starting it")
-				ctr.Successfully(providerCntr,
-					"-n", mobyns,
-					"run", "-d",
-					"--label", "foo=bar",
-					"--label", NerdctlNameLabel+"=rappelfatz",
-					testImageRef,
-					testContainerName,
-					"/bin/sleep", "30s")
-				DeferCleanup(func() {
-					_ = ctr.Exec(providerCntr,
+				ctr = Successful(providerCntr.Exec(ctx,
+					exec.Command("ctr",
 						"-n", mobyns,
-						"task", "rm", "-f", testContainerName)
-					_ = ctr.Exec(providerCntr,
-						"-n", mobyns,
-						"container", "rm", testContainerName)
+						"run", "-d",
+						"--label", "foo=bar",
+						"--label", NerdctlNameLabel+"=rappelfatz",
+						testImageRef,
+						testContainerName,
+						"/bin/sleep", "30s"),
+					exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+				Expect(ctr.Wait(ctx)).To(BeZero())
+				DeferCleanup(func(ctx context.Context) {
+					ctr := Successful(providerCntr.Exec(ctx,
+						exec.Command("ctr",
+							"-n", testNamespace,
+							"task", "rm", "-f", testContainerName),
+						exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+					_, _ = ctr.Wait(ctx)
+					ctr = Successful(providerCntr.Exec(ctx,
+						exec.Command("ctr",
+							"-n", mobyns,
+							"container", "rm", testContainerName),
+						exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+					_, _ = ctr.Wait(ctx)
 				})
 
 				// We should never see any event for Docker-originating containers.
@@ -420,18 +457,24 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 				Expect(cntrs).NotTo(ContainElement(HaveValue(HaveID(mobyns + "/" + momo))))
 
 				By("stopping container/task")
-				ctr.Successfully(providerCntr,
-					"-n", mobyns,
-					"task", "kill", "--signal", "9", testContainerName)
+				ctr = Successful(providerCntr.Exec(ctx,
+					exec.Command("ctr",
+						"-n", mobyns,
+						"task", "kill", "--signal", "9", testContainerName),
+					exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+				Expect(ctr.Wait(ctx)).To(BeZero())
 				Eventually(func() error {
 					_, err := cw.Inspect(wwctx, mobyns+"/"+momo)
 					return err
 				}).Should(MatchError(MatchRegexp(`container .*: not found`)))
 
 				By("deleting container/task")
-				ctr.Successfully(providerCntr,
-					"-n", mobyns,
-					"task", "rm", "-f", testContainerName)
+				ctr = Successful(providerCntr.Exec(ctx,
+					exec.Command("ctr",
+						"-n", mobyns,
+						"task", "rm", "-f", testContainerName),
+					exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
+				Expect(ctr.Wait(ctx)).To(BeZero())
 
 				By("not receiving container/task any exit event")
 				// We should see or have seen the corresponding task exit event...
