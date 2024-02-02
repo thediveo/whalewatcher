@@ -50,20 +50,19 @@ const (
 
 var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 
-	BeforeEach(func() {
+	It("doesn't accept invalid engine API paths", func() {
 		goodfds := Filedescriptors()
 		DeferCleanup(func() {
-			Eventually(Goroutines).ShouldNot(HaveLeaked())
+			Eventually(Goroutines).Within(5 * time.Second).ProbeEvery(250 * time.Millisecond).
+				ShouldNot(HaveLeaked())
 			Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
 		})
-	})
-
-	It("doesn't accept invalid engine API paths", func() {
 		Expect(New("localhost:66666", nil)).Error().To(HaveOccurred())
 	})
 
 	Context("containerized CRI engine", Ordered, func() {
 
+		var sess *morbyd.Session
 		var providerCntr *morbyd.Container
 
 		// We build and use the same Docker container for testing our CRI event API
@@ -75,8 +74,15 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 				Skip("needs root")
 			}
 
+			goodfds := Filedescriptors()
+			DeferCleanup(func() {
+				Eventually(Goroutines).Within(5 * time.Second).ProbeEvery(250 * time.Millisecond).
+					ShouldNot(HaveLeaked())
+				Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
+			})
+
 			By("creating a new Docker session for testing")
-			sess := Successful(morbyd.NewSession(ctx))
+			sess = Successful(morbyd.NewSession(ctx))
 			DeferCleanup(func(ctx context.Context) {
 				sess.Close(ctx)
 			})
@@ -87,9 +93,6 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 			// https://github.com/kubernetes-sigs/kind/blob/3610f606516ccaa88aa098465d8c13af70937050/pkg/cluster/internal/providers/docker/provision.go#L133
 			//
 			// Please note that --privileged already implies switching off AppArmor.
-			//
-			// Please note further, that currently some Docker client CLI flags
-			// don't translate into dockertest-supported options.
 			//
 			// docker run -it --rm --name kindisch-...
 			//   --privileged
@@ -155,6 +158,10 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 				mw.Close()
 			})
 			Expect(mw.PID()).To(Equal(pid))
+
+			DeferCleanup(func(ctx context.Context) {
+				sess.Close(ctx)
+			})
 		})
 
 		It("gets and uses the underlying CRI client", slowSpec, func(ctx context.Context) {
