@@ -18,4 +18,4 @@ package test
 // in tests without messing with the outer Docker's containerd engine instance
 // in the host. At least we hope that it might be the host, one never knows
 // these days. And I don't want to watch my totem anyway.
-const KindestBaseImageTag = "v20230525-4c49613f"
+const KindestBaseImageTag = "v20240212-c4cadcab"
