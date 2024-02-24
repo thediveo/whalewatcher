@@ -2,28 +2,33 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/thediveo/whalewatcher)](https://pkg.go.dev/github.com/thediveo/whalewatcher)
 [![GitHub](https://img.shields.io/github/license/thediveo/whalewatcher)](https://img.shields.io/github/license/thediveo/whalewatcher)
 ![build and test](https://github.com/thediveo/whalewatcher/workflows/build%20and%20test/badge.svg?branch=master)
-![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)
-![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)
+[![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)](https://pkg.go.dev/github.com/onsi/gomega/gleak)
+[![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)](https://pkg.go.dev/github.com/thediveo/fdooze)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
 ![Coverage](https://img.shields.io/badge/Coverage-85.7%25-brightgreen)
 
-🔭🐋 `whalewatcher` is a simple Golang module that relieves applications from
-the tedious task of constantly monitoring "alive" container workloads: no need
-to watching boring event streams or alternatively polling to have the accurate
-picture. Never worry about how to properly synchronize to a changing workload at
-startup, this is all taken care of for you.
+🔭🐋 `whalewatcher` is a Go module that relieves applications from the tedious
+task of constantly monitoring "alive" container workloads: no need to watching
+boring event streams or alternatively polling to have the accurate picture.
+Never worry about how you have to properly synchronize to a changing workload at
+startup, this is all taken care of for you by `whalewatcher`.
 
-Instead, using `whalewatcher` an application simply asks for the current state
+Instead, using `whalewatcher` your application simply asks for the current state
 of affairs at any time when it needs to do so. The workload state then is
 directly answered from `whalewatcher`'s trackers without causing container
 engine load: which containers are alive right now? And what composer projects
 are in use?
 
-Oh, `whalewatcher` isn't limited to just Docker, it also supports
-[nerdctl](https://github.com/containerd/nerdctl) with _plain_ containerd. Wait,
-there's even more: any container engine supporting the [CRI pod event
-API](https://github.com/kubernetes/cri-api/blob/604407e718bd257069ddd48932eefea00eb1c9a7/pkg/apis/runtime/v1/api.proto#L123)
-can be tracked, too.
+Alternatively, your application can also consume workload lifecycle events
+provided by `whalewatcher`. The benefit of using `whalewatcher` instead of the
+plain Docker API is that you get the initial synchronization done properly that
+will emit container workload (fake) start events, so you always get the correct
+current picture.
+
+Oh, `whalewatcher` isn't limited to just Docker, it also supports other
+container engines, namely plain containerd, any CRI+event PLEG supporting
+engines (containerd, cri-o), and finally podmand. For podman, read carefully the
+notes below.
 
 ## Stayin' Alive
 
@@ -53,6 +58,9 @@ synchronized to the container engine state.
   labels, (un)pausing state, and optional (composer) project. See the
   [`whalewatcher.Container`](https://pkg.go.dev/github.com/thediveo/whalewatcher#Container)
   type for details.
+- two APIs available:
+  - query workload situation on demand.
+  - workload lifecycle events.
 - supports multiple types of container engines:
   - [Docker/Moby](https://github.com/moby/moby).
   - plain [containerd](https://github.com/containerd/containerd) using containerd's native API.
@@ -60,12 +68,14 @@ synchronized to the container engine state.
     - sandbox container lifecycle events must be reported and not suppressed.
     - sandbox and container PIDs must be reported by the verbose variant of the
       container status API call in the PID field of the JSON info object.
-  - Podman: **use the Docker/Moby watcher.** Due to several serious unfixed
-    issues we're not supporting Podman's own API any longer and have archived
-    the sealwatcher _experiment_. More background information can be found in
-    [alias podman=p.o.'d.man](http://thediveo.github.io/#/art/podman). To
-    paraphrase the podman project's answer: _if you need a stable API, use the
-    Docker API_. Got that.
+  - Podman: 
+    - you will have to **use the Docker/Moby watcher.**
+    - Due to several serious unfixed issues we're not supporting Podman's own
+      API any longer and have archived the sealwatcher _experiment_. More
+      background information can be found in [alias
+      podman=p.o.'d.man](http://thediveo.github.io/#/art/podman). To paraphrase
+      the podman project's answer: _if you need a stable API, use the Docker
+      API_. Got that.
 - composer project-aware:
   - [docker-compose](https://docs.docker.com/compose/)
   - [nerdctl](https://github.com/containerd/nerdctl)
@@ -75,9 +85,22 @@ synchronized to the container engine state.
 - documentation ... please see:
   [![PkgGoDev](https://pkg.go.dev/badge/github.com/thediveo/whalewatcher)](https://pkg.go.dev/github.com/thediveo/whalewatcher)
 
+## Turtlefinder
+
+Depending on your use case, you might want to use
+[`@siemens/turtlefinder`](https://github.com/siemens/turtlefinder): it
+autodetects the different container engines and then starts the required whale
+watchers. The turtlefinder additionally detects container engines inside
+containers, and it can also discover and kick the multiple socket-activated
+podman daemons for system, users, etc. into life.
+
 ## Example Usage
 
-From `example/main.go`:
+From `example/main.go`: this example starts a watcher for the host's Docker (or
+podman) daemon, using the `/run/docker.sock` API endpoint. In this example, we
+first wait for the initial synchronization to finish, and afterwards print the
+container workload. Please note that only workload with running/paused
+containers is shown – that is, the containers with processes.
 
 ```go
 package main
@@ -92,7 +115,7 @@ import (
 
 func main() {
     // connect to the Docker engine; configure no backoff.
-    whalewatcher, err := moby.New("unix:///var/run/docker.sock", nil)
+    whalewatcher, err := moby.New("unix:///run/docker.sock", nil)
     if err != nil {
         panic(err)
     }
