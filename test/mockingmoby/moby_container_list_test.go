@@ -18,7 +18,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/thediveo/success"
@@ -30,11 +31,11 @@ var _ = Describe("lists mocked containers", func() {
 		mm := NewMockingMoby()
 		defer mm.Close()
 
-		cntrs := Successful(mm.ContainerList(context.Background(), types.ContainerListOptions{}))
+		cntrs := Successful(mm.ContainerList(context.Background(), container.ListOptions{}))
 		Expect(cntrs).To(HaveLen(0))
 
 		mm.AddContainer(mockingMoby)
-		cntrs = Successful(mm.ContainerList(context.Background(), types.ContainerListOptions{}))
+		cntrs = Successful(mm.ContainerList(context.Background(), container.ListOptions{}))
 		Expect(cntrs).To(HaveLen(1))
 		c := cntrs[0]
 		Expect(c.ID).To(Equal(mockingMoby.ID))
@@ -43,7 +44,7 @@ var _ = Describe("lists mocked containers", func() {
 		Expect(c.Status).To(Equal(MockedStatus[mockingMoby.Status]))
 
 		mm.AddContainer(furiousFuruncle)
-		cntrs = Successful(mm.ContainerList(context.Background(), types.ContainerListOptions{}))
+		cntrs = Successful(mm.ContainerList(context.Background(), container.ListOptions{}))
 		Expect(cntrs).To(HaveLen(2))
 		Expect(cntrs).To(ConsistOf(
 			HaveField("ID", Equal(mockingMoby.ID)),
@@ -58,7 +59,7 @@ var _ = Describe("lists mocked containers", func() {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Expect(mm.ContainerList(ctx, types.ContainerListOptions{})).Error().To(HaveOccurred())
+		Expect(mm.ContainerList(ctx, container.ListOptions{})).Error().To(HaveOccurred())
 	})
 
 	It("registers and calls hooks", func() {

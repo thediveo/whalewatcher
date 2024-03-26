@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -115,7 +115,7 @@ var _ = Describe("inspects mocked containers", func() {
 				func(key HookKey) error {
 					Expect(key).To(Equal(ContainerListPost))
 					return doh
-				}), types.ContainerListOptions{})).
+				}), container.ListOptions{})).
 			Error().To(Equal(doh))
 
 		Expect(mm.ContainerList(
@@ -124,7 +124,7 @@ var _ = Describe("inspects mocked containers", func() {
 				ContainerListPre,
 				func(HookKey) error {
 					return doh
-				}), types.ContainerListOptions{})).
+				}), container.ListOptions{})).
 			Error().To(Equal(doh))
 	})
 

@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/thediveo/whalewatcher"
@@ -156,7 +157,7 @@ func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, err
 	// further consideration. This is a potentially lengthy operation, as we
 	// need to inspect each potential candidate individually due to the way the
 	// Docker daemon's API is designed.
-	containers, err := mw.moby.ContainerList(ctx, types.ContainerListOptions{})
+	containers, err := mw.moby.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		return nil, err // list? what list??
 	}

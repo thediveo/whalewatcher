@@ -20,25 +20,24 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	networktypes "github.com/docker/docker/api/types/network"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ContainerAttach is not implemented.
-func (mm *MockingMoby) ContainerAttach(ctx context.Context, container string, options types.ContainerAttachOptions) (types.HijackedResponse, error) {
+func (mm *MockingMoby) ContainerAttach(ctx context.Context, container string, options container.AttachOptions) (types.HijackedResponse, error) {
 	return types.HijackedResponse{}, errNotImplemented
 }
 
 // ContainerCommit is not implemented.
-func (mm *MockingMoby) ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.IDResponse, error) {
+func (mm *MockingMoby) ContainerCommit(ctx context.Context, container string, options container.CommitOptions) (types.IDResponse, error) {
 	return types.IDResponse{}, errNotImplemented
 }
 
 // ContainerCreate is not implemented.
-func (mm *MockingMoby) ContainerCreate(ctx context.Context, config *containertypes.Config, hostConfig *containertypes.HostConfig, networkingConfig *networktypes.NetworkingConfig, platform *specs.Platform, containerName string) (containertypes.CreateResponse, error) {
-	return containertypes.CreateResponse{}, errNotImplemented
+func (mm *MockingMoby) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *networktypes.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+	return container.CreateResponse{}, errNotImplemented
 }
 
 // ContainerDiff is not implemented.
@@ -62,7 +61,7 @@ func (mm *MockingMoby) ContainerExecInspect(ctx context.Context, execID string) 
 }
 
 // ContainerExecResize is not implemented.
-func (mm *MockingMoby) ContainerExecResize(ctx context.Context, execID string, options types.ResizeOptions) error {
+func (mm *MockingMoby) ContainerExecResize(ctx context.Context, execID string, options container.ResizeOptions) error {
 	return errNotImplemented
 }
 
@@ -87,7 +86,7 @@ func (mm *MockingMoby) ContainerKill(ctx context.Context, container, signal stri
 }
 
 // ContainerLogs is not implemented.
-func (mm *MockingMoby) ContainerLogs(ctx context.Context, container string, options types.ContainerLogsOptions) (io.ReadCloser, error) {
+func (mm *MockingMoby) ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error) {
 	return nil, errNotImplemented
 }
 
@@ -97,7 +96,7 @@ func (mm *MockingMoby) ContainerPause(ctx context.Context, container string) err
 }
 
 // ContainerRemove is not implemented.
-func (mm *MockingMoby) ContainerRemove(ctx context.Context, container string, options types.ContainerRemoveOptions) error {
+func (mm *MockingMoby) ContainerRemove(ctx context.Context, container string, options container.RemoveOptions) error {
 	return errNotImplemented
 }
 
@@ -107,7 +106,7 @@ func (mm *MockingMoby) ContainerRename(ctx context.Context, container, newContai
 }
 
 // ContainerResize is not implemented.
-func (mm *MockingMoby) ContainerResize(ctx context.Context, container string, options types.ResizeOptions) error {
+func (mm *MockingMoby) ContainerResize(ctx context.Context, container string, options container.ResizeOptions) error {
 	return errNotImplemented
 }
 
@@ -132,7 +131,7 @@ func (mm *MockingMoby) ContainerStatsOneShot(ctx context.Context, container stri
 }
 
 // ContainerStart is not implemented.
-func (mm *MockingMoby) ContainerStart(ctx context.Context, container string, options types.ContainerStartOptions) error {
+func (mm *MockingMoby) ContainerStart(ctx context.Context, container string, options container.StartOptions) error {
 	return errNotImplemented
 }
 
@@ -142,8 +141,8 @@ func (mm *MockingMoby) ContainerStop(ctx context.Context, container string, opti
 }
 
 // ContainerTop is not implemented.
-func (mm *MockingMoby) ContainerTop(ctx context.Context, container string, arguments []string) (containertypes.ContainerTopOKBody, error) {
-	return containertypes.ContainerTopOKBody{}, errNotImplemented
+func (mm *MockingMoby) ContainerTop(ctx context.Context, cntr string, arguments []string) (container.ContainerTopOKBody, error) {
+	return container.ContainerTopOKBody{}, errNotImplemented
 }
 
 // ContainerUnpause is not implemented.
@@ -152,12 +151,12 @@ func (mm *MockingMoby) ContainerUnpause(ctx context.Context, container string) e
 }
 
 // ContainerUpdate is not implemented.
-func (mm *MockingMoby) ContainerUpdate(ctx context.Context, container string, updateConfig containertypes.UpdateConfig) (containertypes.ContainerUpdateOKBody, error) {
-	return containertypes.ContainerUpdateOKBody{}, errNotImplemented
+func (mm *MockingMoby) ContainerUpdate(ctx context.Context, cntr string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error) {
+	return container.ContainerUpdateOKBody{}, errNotImplemented
 }
 
 // ContainerWait is not implemented.
-func (mm *MockingMoby) ContainerWait(ctx context.Context, container string, condition containertypes.WaitCondition) (<-chan containertypes.WaitResponse, <-chan error) {
+func (mm *MockingMoby) ContainerWait(ctx context.Context, container string, condition container.WaitCondition) (<-chan container.WaitResponse, <-chan error) {
 	return nil, nil
 }
 
