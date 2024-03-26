@@ -18,11 +18,12 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ContainerList returns the list of currently known containers, ignoring any
 // list options.
-func (mm *MockingMoby) ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error) {
+func (mm *MockingMoby) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
 	if err := isCtxCancelled(ctx); err != nil {
 		return nil, err
 	}
