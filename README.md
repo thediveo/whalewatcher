@@ -5,7 +5,7 @@
 [![goroutines](https://img.shields.io/badge/go%20routines-not%20leaking-success)](https://pkg.go.dev/github.com/onsi/gomega/gleak)
 [![file descriptors](https://img.shields.io/badge/file%20descriptors-not%20leaking-success)](https://pkg.go.dev/github.com/thediveo/fdooze)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thediveo/whalewatcher)](https://goreportcard.com/report/github.com/thediveo/whalewatcher)
-![Coverage](https://img.shields.io/badge/Coverage-85.7%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-87.9%25-brightgreen)
 
 🔭🐋 `whalewatcher` is a Go module that relieves applications from the tedious
 task of constantly monitoring "alive" container workloads: no need to watching
@@ -158,91 +158,20 @@ func main() {
 }
 ```
 
-## Hacking It
+## DevContainer
 
-This project comes with comprehensive unit tests, including (albeit limited)
-mocking of Docker clients to the small extend required for whale watching.
+Do yourself a favor, tinker with this Go module in a devcontainer; this gives
+you a controlled and somewhat isolated environment.
 
-- unit tests require Docker CE in a _moderately_ recent version. Debian users
-  are advised to install Docker CE from Docker's package, as Debian's own
-  packages tend to completely outdate function-wise over the lifespan of a
-  particular Debian release.
+> [!CAUTION]
+>
+> Do **not** use VSCode's "~~Dev Containers: Clone Repository in Container
+> Volume~~" command, as it is utterly broken by design, ignoring
+> `.devcontainer/devcontainer.json`.
 
-> **Fun Fact:** the tests covering containerd and CRI-O use a dockerized
-> container/cri-o image, leveraging the `kindest/base` image by the KinD SIG, in
-> ways the SIG surely didn't envision.
-
-The tests come with integrated leak checks:
-
-* goroutine leak checking courtesy of Gomega's
-  [`gleak`](https://onsi.github.io/gomega/#codegleakcode-finding-leaked-goroutines)
-  package.
-
-* file descriptor leak checking courtesy of the
-  [@thediveo/fdooze](https://github.com/thediveo/fdooze) module.
-
-> **Note:** do **not run parallel tests** for multiple packages. `make test`
-ensures to run all package tests always sequentially, but in case you run `go
-test` yourself, please don't forget `-p 1` when testing multiple packages in
-one, _erm_, go.
-
-Unit tests about interfacing with and tracking containerd and CRI container
-engines use **Docker containers with containerized containerd and cri-o
-engines**. The corresponding test images base on [`kindest/base` Docker
-images](https://hub.docker.com/r/kindest/base), courtesy of the [KinD k8s
-SIG](https://github.com/kubernetes-sigs/kind). Now, we fully understand that
-we're on our own here with no guarantees given by the KinD k8s SIG. However,
-their `kindest/base` images are really helpful in coming up with containerizing
-a containerd engine to a Docker container that we cannot simply pass by them.
-
-All we're adding is some slim configuration so that we can create some pods
-and/or containers. The cri-o bases on some instructions about how to modify the
-KinD images to use cri-o instead of containerd; but in our case we install them
-both side-by-side. And as it happens, they seem to somehow get along with each
-other when confined to the same Docker container.
-
-## VSCode Tasks
-
-The included `go-plugger.code-workspace` defines the following tasks:
-
-- **View Go module documentation** task: installs `pkgsite`, if not done already
-  so, then starts `pkgsite` and opens VSCode's integrated ("simple") browser to
-  show the go-plugger/v2 documentation.
-
-- **Build workspace** task: builds all, including the shared library test
-  plugin.
-
-- **Run all tests with coverage** task: does what it says on the tin and runs
-  all tests with coverage.
-
-#### Aux Tasks
-
-- _pksite service_: auxilliary task to run `pkgsite` as a background service
-  using `scripts/pkgsite.sh`. The script leverages browser-sync and nodemon to
-  hot reload the Go module documentation on changes; many thanks to @mdaverde's
-  [_Build your Golang package docs
-  locally_](https://mdaverde.com/posts/golang-local-docs) for paving the way.
-  `scripts/pkgsite.sh` adds automatic installation of `pkgsite`, as well as the
-  `browser-sync` and `nodemon` npm packages for the local user.
-- _view pkgsite_: auxilliary task to open the VSCode-integrated "simple" browser
-  and pass it the local URL to open in order to show the module documentation
-  rendered by `pkgsite`. This requires a detour via a task input with ID
-  "_pkgsite_".
-
-## Make Targets
-
-- `make`: lists all targets.
-- `make coverage`: runs all tests with coverage and then **updates the coverage
-  badge in `README.md`**.
-- `make pkgsite`: installs [`x/pkgsite`](golang.org/x/pkgsite/cmd/pkgsite), as
-  well as the [`browser-sync`](https://www.npmjs.com/package/browser-sync) and
-  [`nodemon`](https://www.npmjs.com/package/nodemon) npm packages first, if not
-  already done so. Then runs the `pkgsite` and hot reloads it whenever the
-  documentation changes.
-- `make report`: installs
-  [`@gojp/goreportcard`](https://github.com/gojp/goreportcard) if not yet done
-  so and then runs it on the code base.
-- `make test`: runs **all** tests (including dynamic plugins).
+1. `git clone https://github.com/thediveo/irks`
+2. in VSCode: Ctrl+Shift+P, "Dev Containers: Open Workspace in Container..."
+3. select `irks.code-workspace` and off you go...
 
 ## Contributing
 

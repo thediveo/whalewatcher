@@ -17,7 +17,6 @@ package mockingmoby
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +31,7 @@ var _ = Describe("mocked event streaming", func() {
 
 		ctx, cancel := context.WithCancel(context.Background())
 
-		evs, errs := mm.Events(ctx, types.EventsOptions{})
+		evs, errs := mm.Events(ctx, events.ListOptions{})
 		Expect(evs).NotTo(BeNil())
 		Expect(errs).NotTo(BeNil())
 
@@ -125,7 +124,7 @@ var _ = Describe("mocked event streaming", func() {
 		mm := NewMockingMoby()
 		defer mm.Close()
 
-		evs, errs := mm.Events(context.Background(), types.EventsOptions{})
+		evs, errs := mm.Events(context.Background(), events.ListOptions{})
 		Expect(evs).NotTo(BeNil())
 		Expect(errs).NotTo(BeNil())
 

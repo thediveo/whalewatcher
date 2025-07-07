@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/thediveo/morbyd"
 	"github.com/thediveo/morbyd/run"
@@ -61,15 +61,15 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 		// While // https://github.com/moby/moby/pull/42379 is pending we need
 		// to run any additional API calls from the same goroutine as where we
 		// start the Watch in order to not trigger the race detector.
-		nchan := make(chan []types.NetworkResource, 1)
+		nchan := make(chan []network.Summary, 1)
 		go func() {
 			defer GinkgoRecover()
 			dc, ok := mw.Client().(client.APIClient)
 			Expect(ok).To(BeTrue())
 			Expect(dc).NotTo(BeNil())
-			networks := Successful(dc.NetworkList(ctx, types.NetworkListOptions{}))
+			networks := Successful(dc.NetworkList(ctx, network.ListOptions{}))
 			nchan <- networks
-			mw.Client().(client.CommonAPIClient).NegotiateAPIVersion(ctx)
+			mw.Client().(client.APIClient).NegotiateAPIVersion(ctx)
 			_ = mw.Watch(ctx)
 			close(done)
 		}()

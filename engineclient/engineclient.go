@@ -17,6 +17,7 @@ package engineclient
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/thediveo/whalewatcher"
 )
@@ -107,9 +108,10 @@ const ProjectUnknown = "\000"
 // ContainerEvent is either a container lifecycle event of a container becoming
 // alive, having died (more precise: its process exited), paused or unpaused.
 type ContainerEvent struct {
-	Type    ContainerEventType // type of lifecycle event.
-	ID      string             // ID (or name) of container.
-	Project string             // optional composer project name, or zero.
+	Timestamp time.Time          // for usecases such as audit logging, et cetera...
+	Type      ContainerEventType // type of lifecycle event.
+	ID        string             // ID (or name) of container.
+	Project   string             // optional composer project name, or zero.
 }
 
 // ErrProcesslessContainer is a custom error indicating that inspecting

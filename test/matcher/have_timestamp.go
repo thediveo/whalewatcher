@@ -1,4 +1,4 @@
-// Copyright 2021 Harald Albrecht.
+// Copyright 2022 Harald Albrecht.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package matcher
 
-// KindestBaseImageTag of kindest/base Docker image containing containerd to use
-// in tests without messing with the outer Docker's containerd engine instance
-// in the host. At least we hope that it might be the host, one never knows
-// these days. And I don't want to watch my totem anyway.
-const KindestBaseImageTag = "v20250521-31a79fd4"
+import (
+	o "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
+)
+
+// HaveTimestamp succeeds if the actual value has a "Timestamp" field and
+// matches the specified timestamp.
+func HaveTimestamp(ts interface{}) types.GomegaMatcher {
+	return o.HaveField("Timestamp", ts)
+}

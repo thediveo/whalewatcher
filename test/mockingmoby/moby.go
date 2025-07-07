@@ -43,8 +43,11 @@ type MockingMoby struct {
 	abort  chan error          // test-controlled abort of event stream
 }
 
-// Ensure that all service API methods have been implemented.
-var _ *MockingMoby = (*MockingMoby)(nil)
+// Ensure that all needed service API methods have been implemented.
+var (
+	_ client.ContainerAPIClient = (*MockingMoby)(nil)
+	_ client.SystemAPIClient    = (*MockingMoby)(nil)
+)
 
 // NewMockingMoby returns a new instance of a mock Docker client.
 func NewMockingMoby() *MockingMoby {

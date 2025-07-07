@@ -308,6 +308,7 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
 			Expect(ctr.Wait(ctx)).To(BeZero())
 			Eventually(evs).Should(Receive(And(
+				HaveTimestamp(Not(BeZero())),
 				HaveEventType(engineclient.ContainerPaused),
 				HaveID(testNamespace+"/"+testContainerName),
 			)))
@@ -322,6 +323,7 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 				exec.WithCombinedOutput(timestamper.New(GinkgoWriter))))
 			Expect(ctr.Wait(ctx)).To(BeZero())
 			Eventually(evs).Should(Receive(And(
+				HaveTimestamp(Not(BeZero())),
 				HaveEventType(engineclient.ContainerUnpaused),
 				HaveID(testNamespace+"/"+testContainerName),
 			)))
@@ -339,6 +341,7 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			By("receiving container/task exit event")
 			// We should see or have seen the corresponding task exit event...
 			Eventually(evs).Should(Receive(And(
+				HaveTimestamp(Not(BeZero())),
 				HaveEventType(engineclient.ContainerExited),
 				HaveID(testNamespace+"/"+testContainerName),
 			)))

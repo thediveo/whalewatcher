@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 )
 
@@ -33,7 +32,7 @@ var ErrEventStreamStopped = errors.New("event stream stopped")
 //
 // Please note that only a single call to the Events API method is supported per
 // mock client instance.
-func (mm *MockingMoby) Events(ctx context.Context, options types.EventsOptions) (<-chan events.Message, <-chan error) {
+func (mm *MockingMoby) Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error) {
 	events := make(chan events.Message, 10)
 	errs := make(chan error, 1)
 	abort := make(chan error, 1)

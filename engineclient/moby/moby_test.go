@@ -17,7 +17,7 @@ package moby
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
+	docktainer "github.com/docker/docker/api/types/container"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
@@ -35,9 +35,9 @@ type packer struct{}
 func (p *packer) Pack(container *whalewatcher.Container, inspection interface{}) {
 	Expect(container).NotTo(BeNil())
 	Expect(inspection).NotTo(BeNil())
-	var details types.ContainerJSON
+	var details docktainer.InspectResponse
 	Expect(inspection).To(BeAssignableToTypeOf(details))
-	details = inspection.(types.ContainerJSON)
+	details = inspection.(docktainer.InspectResponse)
 	container.Rucksack = &details
 }
 
@@ -175,6 +175,7 @@ var _ = Describe("moby engineclient", func() {
 		By("adding a new container")
 		mm.AddContainer(madMay)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerStarted),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),
@@ -183,6 +184,7 @@ var _ = Describe("moby engineclient", func() {
 		By("pausing the container")
 		mm.PauseContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerPaused),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),
@@ -191,6 +193,7 @@ var _ = Describe("moby engineclient", func() {
 		By("unpausing the container")
 		mm.UnpauseContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerUnpaused),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),
@@ -199,6 +202,7 @@ var _ = Describe("moby engineclient", func() {
 		By("removing the container")
 		mm.RemoveContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerExited),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),

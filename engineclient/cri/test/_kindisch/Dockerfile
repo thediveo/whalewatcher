@@ -4,7 +4,7 @@ ARG KINDEST_BASE_TAG
 FROM kindest/base:${KINDEST_BASE_TAG}
 
 # add cri-o to the mix (that is, containerd)
-RUN OS=Debian_11 && VERSION=1.28 \
+RUN OS=Debian_12 && VERSION=1.28 \
     && apt-get update \
     && apt-get install -y --no-install-recommends gnupg \
     && echo "deb [signed-by=/usr/share/keyrings/libcontainers-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" \

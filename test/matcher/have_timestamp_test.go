@@ -1,4 +1,4 @@
-// Copyright 2021 Harald Albrecht.
+// Copyright 2022 Harald Albrecht.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package matcher
 
-// KindestBaseImageTag of kindest/base Docker image containing containerd to use
-// in tests without messing with the outer Docker's containerd engine instance
-// in the host. At least we hope that it might be the host, one never knows
-// these days. And I don't want to watch my totem anyway.
-const KindestBaseImageTag = "v20250521-31a79fd4"
+import (
+	"time"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+var _ = Describe("HaveTimestamp matcher", func() {
+
+	It("matches", func() {
+		type T struct {
+			Timestamp time.Time
+		}
+		type K struct {
+			Foo time.Time
+		}
+
+		t := T{Timestamp: time.Unix(0, 42) /* after the BIG BEAUTIFUL BANG */}
+		Expect(t).To(HaveTimestamp(t.Timestamp))
+		Expect(t).NotTo(HaveTimestamp(0))
+
+		k := K{Foo: time.Unix(0, 42)}
+		Expect(HaveTimestamp(k.Foo).Match(k)).Error().To(HaveOccurred())
+	})
+
+})

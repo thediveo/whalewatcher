@@ -16,9 +16,10 @@ package moby
 
 import (
 	"context"
+	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/thediveo/whalewatcher"
@@ -226,7 +227,7 @@ func (mw *MobyWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient
 			filters.KeyValuePair{Key: "event", Value: "pause"},
 			filters.KeyValuePair{Key: "event", Value: "unpause"},
 		)
-		evs, errs := mw.moby.Events(ctx, types.EventsOptions{Filters: evfilters})
+		evs, errs := mw.moby.Events(ctx, events.ListOptions{Filters: evfilters})
 		for {
 			select {
 			case err := <-errs:
@@ -243,27 +244,31 @@ func (mw *MobyWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient
 				switch ev.Action {
 				case "start":
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerStarted,
-						ID:      ev.Actor.ID,
-						Project: ev.Actor.Attributes[ComposerProjectLabel],
+						Timestamp: time.Unix(0, ev.TimeNano),
+						Type:      engineclient.ContainerStarted,
+						ID:        ev.Actor.ID,
+						Project:   ev.Actor.Attributes[ComposerProjectLabel],
 					}
 				case "die":
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerExited,
-						ID:      ev.Actor.ID,
-						Project: ev.Actor.Attributes[ComposerProjectLabel],
+						Timestamp: time.Unix(0, ev.TimeNano),
+						Type:      engineclient.ContainerExited,
+						ID:        ev.Actor.ID,
+						Project:   ev.Actor.Attributes[ComposerProjectLabel],
 					}
 				case "pause":
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerPaused,
-						ID:      ev.Actor.ID,
-						Project: ev.Actor.Attributes[ComposerProjectLabel],
+						Timestamp: time.Unix(0, ev.TimeNano),
+						Type:      engineclient.ContainerPaused,
+						ID:        ev.Actor.ID,
+						Project:   ev.Actor.Attributes[ComposerProjectLabel],
 					}
 				case "unpause":
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerUnpaused,
-						ID:      ev.Actor.ID,
-						Project: ev.Actor.Attributes[ComposerProjectLabel],
+						Timestamp: time.Unix(0, ev.TimeNano),
+						Type:      engineclient.ContainerUnpaused,
+						ID:        ev.Actor.ID,
+						Project:   ev.Actor.Attributes[ComposerProjectLabel],
 					}
 				}
 			}
