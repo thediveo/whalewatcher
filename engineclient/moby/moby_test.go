@@ -175,6 +175,7 @@ var _ = Describe("moby engineclient", func() {
 		By("adding a new container")
 		mm.AddContainer(madMay)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerStarted),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),
@@ -183,6 +184,7 @@ var _ = Describe("moby engineclient", func() {
 		By("pausing the container")
 		mm.PauseContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerPaused),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),
@@ -191,6 +193,7 @@ var _ = Describe("moby engineclient", func() {
 		By("unpausing the container")
 		mm.UnpauseContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerUnpaused),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),
@@ -199,6 +202,7 @@ var _ = Describe("moby engineclient", func() {
 		By("removing the container")
 		mm.RemoveContainer(madMay.ID)
 		Eventually(evs).Should(Receive(And(
+			HaveTimestamp(Not(BeZero())),
 			HaveID(madMay.ID),
 			HaveEventType(engineclient.ContainerExited),
 			HaveProject(madMay.Labels[ComposerProjectLabel]),

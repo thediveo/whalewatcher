@@ -37,6 +37,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/thediveo/success"
+	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 const (
@@ -303,6 +304,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 			By("waiting for the sandbox started event")
 			Eventually(cntrevch).Within(5 * time.Second).ProbeEvery(100 * time.Millisecond).
 				Should(Receive(And(
+					HaveTimestamp(Not(BeZero())),
 					HaveField("Type", engineclient.ContainerStarted),
 					HaveField("ID", podr.PodSandboxId),
 				)))
@@ -361,10 +363,12 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 			Eventually(cntrevch).Within(5 * time.Second).ProbeEvery(100 * time.Millisecond).
 				Should(Receive(matcher.All(
 					And(
+						HaveTimestamp(Not(BeZero())),
 						HaveField("Type", engineclient.ContainerExited),
 						HaveField("ID", podcntr.ContainerId),
 					),
 					And(
+						HaveTimestamp(Not(BeZero())),
 						HaveField("Type", engineclient.ContainerExited),
 						HaveField("ID", podr.PodSandboxId),
 					),

@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
@@ -392,13 +393,15 @@ func (cw *CRIWatcher) LifecycleEvents(ctx context.Context) (
 			switch ev.ContainerEventType {
 			case runtime.ContainerEventType_CONTAINER_STARTED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
-					Type: engineclient.ContainerStarted,
-					ID:   ev.ContainerId, // use ID to be unambiguous
+					Timestamp: time.Unix(0, ev.CreatedAt),
+					Type:      engineclient.ContainerStarted,
+					ID:        ev.ContainerId, // use ID to be unambiguous
 				}
 			case runtime.ContainerEventType_CONTAINER_STOPPED_EVENT:
 				cntreventstream <- engineclient.ContainerEvent{
-					Type: engineclient.ContainerExited,
-					ID:   ev.ContainerId, // use ID to be unambiguous
+					Timestamp: time.Unix(0, ev.CreatedAt),
+					Type:      engineclient.ContainerExited,
+					ID:        ev.ContainerId, // use ID to be unambiguous
 				}
 			}
 		}

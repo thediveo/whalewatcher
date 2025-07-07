@@ -329,30 +329,34 @@ func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (
 				case "/tasks/start":
 					taskstart := details.(*events.TaskStart)
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerStarted,
-						ID:      displayID(ev.Namespace, taskstart.ContainerID),
-						Project: engineclient.ProjectUnknown,
+						Timestamp: ev.Timestamp,
+						Type:      engineclient.ContainerStarted,
+						ID:        displayID(ev.Namespace, taskstart.ContainerID),
+						Project:   engineclient.ProjectUnknown,
 					}
 				case "/tasks/exit":
 					taskexit := details.(*events.TaskExit)
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerExited,
-						ID:      displayID(ev.Namespace, taskexit.ContainerID),
-						Project: engineclient.ProjectUnknown,
+						Timestamp: ev.Timestamp,
+						Type:      engineclient.ContainerExited,
+						ID:        displayID(ev.Namespace, taskexit.ContainerID),
+						Project:   engineclient.ProjectUnknown,
 					}
 				case "/tasks/paused":
 					taskpaused := details.(*events.TaskPaused)
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerPaused,
-						ID:      displayID(ev.Namespace, taskpaused.ContainerID),
-						Project: engineclient.ProjectUnknown,
+						Timestamp: ev.Timestamp,
+						Type:      engineclient.ContainerPaused,
+						ID:        displayID(ev.Namespace, taskpaused.ContainerID),
+						Project:   engineclient.ProjectUnknown,
 					}
 				case "/tasks/resumed":
 					taskresumed := details.(*events.TaskResumed)
 					cntreventstream <- engineclient.ContainerEvent{
-						Type:    engineclient.ContainerUnpaused,
-						ID:      displayID(ev.Namespace, taskresumed.ContainerID),
-						Project: engineclient.ProjectUnknown,
+						Timestamp: ev.Timestamp,
+						Type:      engineclient.ContainerUnpaused,
+						ID:        displayID(ev.Namespace, taskresumed.ContainerID),
+						Project:   engineclient.ProjectUnknown,
 					}
 				}
 			}
