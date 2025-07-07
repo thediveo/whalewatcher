@@ -17,8 +17,8 @@ package moby
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/thediveo/whalewatcher"
@@ -226,7 +226,7 @@ func (mw *MobyWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient
 			filters.KeyValuePair{Key: "event", Value: "pause"},
 			filters.KeyValuePair{Key: "event", Value: "unpause"},
 		)
-		evs, errs := mw.moby.Events(ctx, types.EventsOptions{Filters: evfilters})
+		evs, errs := mw.moby.Events(ctx, events.ListOptions{Filters: evfilters})
 		for {
 			select {
 			case err := <-errs:

@@ -17,7 +17,7 @@ package moby
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
+	docktainer "github.com/docker/docker/api/types/container"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/test/mockingmoby"
@@ -35,9 +35,9 @@ type packer struct{}
 func (p *packer) Pack(container *whalewatcher.Container, inspection interface{}) {
 	Expect(container).NotTo(BeNil())
 	Expect(inspection).NotTo(BeNil())
-	var details types.ContainerJSON
+	var details docktainer.InspectResponse
 	Expect(inspection).To(BeAssignableToTypeOf(details))
-	details = inspection.(types.ContainerJSON)
+	details = inspection.(docktainer.InspectResponse)
 	container.Rucksack = &details
 }
 
