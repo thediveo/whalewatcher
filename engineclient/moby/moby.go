@@ -16,15 +16,16 @@ package moby
 
 import (
 	"context"
+	"maps"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
-	"golang.org/x/exp/maps"
 )
 
 // Type specifies this container engine's type identifier.
@@ -140,7 +141,7 @@ func (mw *MobyWatcher) Client() interface{} { return mw.moby }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (mw *MobyWatcher) Close() {
-	mw.moby.Close()
+	_ = mw.moby.Close()
 }
 
 // Allow an engine client to do some final pre-flight operations that might
@@ -164,22 +165,23 @@ func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, err
 	}
 	alives := make([]*whalewatcher.Container, 0, len(containers))
 	for _, container := range containers {
-		if alive, err := mw.Inspect(ctx, container.ID); err == nil {
-			alives = append(alives, alive)
-		} else {
+		alive, err := mw.Inspect(ctx, container.ID)
+		if err != nil {
 			// silently ignore missing containers that have gone since the list
 			// was prepared, but abort on severe problems in order to not keep
 			// this running for too long unnecessarily.
-			if !engineclient.IsProcesslessContainer(err) && !client.IsErrNotFound(err) {
+			if !engineclient.IsProcesslessContainer(err) && !cerrdefs.IsNotFound(err) {
 				return nil, err
 			}
+			continue
 		}
+		alives = append(alives, alive)
 	}
 	return alives, nil
 }
 
 // Inspect (only) those container details of interest to us, given the name or
-// ID of a container.
+// ID of a container. If inspection fails, it returns an error instead.
 func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatcher.Container, error) {
 	details, err := mw.moby.ContainerInspect(ctx, nameorid)
 	if err != nil {
@@ -205,6 +207,8 @@ func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatc
 		// value doesn't matter.
 		cntr.Labels[PrivilegedLabel] = ""
 	}
+	// If someone wants to keep more details, let them pack it into the Rucksack
+	// of the container description.
 	if mw.packer != nil {
 		mw.packer.Pack(cntr, details)
 	}
