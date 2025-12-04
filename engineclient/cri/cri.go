@@ -18,11 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
-	"golang.org/x/exp/maps"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
@@ -202,7 +202,11 @@ func (cw *CRIWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatch
 		return nil, err
 	}
 	if len(cntrs.Containers) == 1 {
-		return cw.newContainer(ctx, cntrs.Containers[0], nil), nil
+		cntr := cw.newContainer(ctx, cntrs.Containers[0], nil)
+		if cntr == nil {
+			return nil, engineclient.NewProcesslessContainerError(nameorid, "cri")
+		}
+		return cntr, nil
 	}
 	sandboxes, err := cw.client.rtcl.ListPodSandbox(ctx, &runtime.ListPodSandboxRequest{
 		Filter: &runtime.PodSandboxFilter{Id: nameorid},

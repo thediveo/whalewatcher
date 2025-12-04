@@ -5,7 +5,8 @@
 		}
 	],
 	"settings": {
-		"makefile.extensionOutputFolder": "./.vscode"
+		"makefile.extensionOutputFolder": "./.vscode",
+		"terminal.integrated.scrollback": 10000
 	},
 	"launch": {
 		"version": "0.2.0",
