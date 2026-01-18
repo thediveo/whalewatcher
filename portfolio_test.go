@@ -102,4 +102,26 @@ var _ = Describe("composer project portfolio", func() {
 
 	})
 
+	It("iterates the complete workload", func() {
+		pf := NewPortfolio()
+		Expect(pf).NotTo(BeNil())
+
+		pf.Add(&Container{
+			Name: "pompous_paperboard",
+		})
+		pf.Add(&Container{
+			Name:    "furious_furuncle",
+			Project: "grumpy",
+		})
+		pf.Add(&Container{
+			Name:    "murky_moby",
+			Project: "rumpelpumpel",
+		})
+
+		Expect(pf.AllContainers()).To(ConsistOf(
+			HaveField("Name", "murky_moby"),
+			HaveField("Name", "furious_furuncle"),
+			HaveField("Name", "pompous_paperboard")))
+	})
+
 })

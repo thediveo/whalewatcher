@@ -15,12 +15,14 @@
 package whalewatcher
 
 import (
+	"iter"
+	"maps"
 	"sync"
 )
 
 // Portfolio represents all known composer projects, including the "zero"
-// (unnamed) project. The "zero" project has the zero name and contains all
-// containers that are not part of any named composer project. The Portfolio
+// (unnamed) project. The "zero" project has the zero/empty name and contains
+// all containers that don't belong to any named composer project. The Portfolio
 // manages projects implicitly when adding and removing containers belonging to
 // projects. Thus, there is no need to explicitly add or delete composer
 // projects.
@@ -78,9 +80,27 @@ func (pf *Portfolio) Container(nameorid string) *Container {
 // including non-project "standalone" containers.
 func (pf *Portfolio) ContainerTotal() (total int) {
 	for _, project := range pf.projects {
-		total += len(project.containers)
+		total += len(project.Containers())
 	}
 	return
+}
+
+// AllContainers returns an iterator that iterates over the complete workload,
+// that is, over all containers in all projects (including the zero/unnamed
+// project).
+func (pf *Portfolio) AllContainers() iter.Seq[*Container] {
+	pf.m.RLock()
+	defer pf.m.RUnlock()
+	projects := maps.Clone(pf.projects)
+	return func(yield func(*Container) bool) {
+		for _, project := range projects {
+			for _, container := range project.Containers() {
+				if !yield(container) {
+					return
+				}
+			}
+		}
+	}
 }
 
 // Add a container to the portfolio, creating also its composer project if that
