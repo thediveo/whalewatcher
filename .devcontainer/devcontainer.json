@@ -30,7 +30,10 @@
         "GOPATH": "/home/vscode/go",
         "PATH": "/home/vscode/go/bin:/go/bin:/usr/local/go/bin:${localEnv:PATH}"
     },
-    "postCreateCommand": "go install go.uber.org/mock/mockgen@latest",
+    "postCreateCommand": {
+        "install-mockgen": "go install go.uber.org/mock/mockgen@latest",
+        "go-for-root": "echo 'Defaults:vscode secure_path = \"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin\"' | sudo tee -a /etc/sudoers.d/vscode",
+    },
     "customizations": {
         "vscode": {
             "extensions": [
