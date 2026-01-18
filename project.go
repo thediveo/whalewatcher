@@ -16,6 +16,7 @@ package whalewatcher
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -49,7 +50,7 @@ func newComposerProject(name string) *ComposerProject {
 func (p *ComposerProject) Containers() []*Container {
 	p.m.RLock()
 	defer p.m.RUnlock()
-	return p.containers
+	return slices.Clone(p.containers)
 }
 
 // ContainerNames returns the current list of container names belonging to this
