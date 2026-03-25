@@ -16,12 +16,12 @@ package watcher
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
-	"golang.org/x/exp/slices"
 )
 
 // Watcher allows keeping track of the currently alive containers of a container

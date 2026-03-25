@@ -29,6 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
+	. "github.com/thediveo/testily/concur"
 )
 
 var (
@@ -298,14 +299,10 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		mm.AddContainer(mockingMoby)
 
 		cctx, cancel := context.WithCancel(context.Background())
-		done := make(chan struct{})
 
 		te.ClearTrials()
 		te.Retries = 2
-		go func() {
-			_ = ww.Watch(cctx)
-			close(done)
-		}()
+		done := CloseWhenGone(func() { _ = ww.Watch(cctx) })
 
 		// wait for the initial synchronization to be done and the initial
 		// discovery results having just come in. As we're doing retries with
@@ -349,11 +346,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		mm.AddContainer(mockingMoby)
 
 		cctx, cancel := context.WithCancel(context.Background())
-		done := make(chan struct{})
-		go func() {
-			_ = ww.Watch(cctx)
-			close(done)
-		}()
+		done := CloseWhenGone(func() { _ = ww.Watch(cctx) })
 		// Make sure that the watcher goroutine has properly started the event
 		// streaming...
 		Eventually(portfolio).Should(ConsistOf(mockingMoby.Name))

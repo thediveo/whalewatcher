@@ -16,8 +16,7 @@ package matcher
 
 import (
 	"errors"
-
-	"golang.org/x/exp/slices"
+	"slices"
 
 	"github.com/onsi/gomega/format"
 	"github.com/onsi/gomega/gcustom"

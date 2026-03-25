@@ -31,6 +31,7 @@ import (
 	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/success"
+	. "github.com/thediveo/testily/concur"
 )
 
 var slowSpec = NodeTimeout(30 * time.Second)
@@ -57,12 +58,11 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		done := make(chan struct{})
 		// While // https://github.com/moby/moby/pull/42379 is pending we need
 		// to run any additional API calls from the same goroutine as where we
 		// start the Watch in order to not trigger the race detector.
 		nchan := make(chan []network.Summary, 1)
-		go func() {
+		done := CloseWhenGone(func() {
 			defer GinkgoRecover()
 			dc, ok := mw.Client().(client.APIClient)
 			Expect(ok).To(BeTrue())
@@ -71,8 +71,7 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 			nchan <- networks
 			mw.Client().(client.APIClient).NegotiateAPIVersion(ctx)
 			_ = mw.Watch(ctx)
-			close(done)
-		}()
+		})
 		Consistently(done).WithTimeout(5 * time.Second).WithPolling(250 * time.Millisecond).
 			ShouldNot(BeClosed())
 		networks := <-nchan
@@ -88,11 +87,7 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 		defer mw.Close()
 
 		wctx, cancel := context.WithCancel(ctx)
-		done := make(chan struct{})
-		go func() {
-			_ = mw.Watch(wctx)
-			close(done)
-		}()
+		done := CloseWhenGone(func() { _ = mw.Watch(wctx) })
 		Consistently(done, "1s").ShouldNot(BeClosed())
 
 		By("creating a new Docker session for testing")
