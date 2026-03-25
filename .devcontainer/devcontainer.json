@@ -37,9 +37,11 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "stkb.rewrap",
+                "dnut.rewrap-revived",
                 "brunnerh.insert-unicode",
                 "mhutchie.git-graph",
+                "ms-vscode.live-server",
+                "github.vscode-github-actions",
                 "ms-vscode.makefile-tools"
             ]
         }

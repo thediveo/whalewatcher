@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,7 +27,6 @@ import (
 	"github.com/thediveo/morbyd/run"
 	"github.com/thediveo/morbyd/session"
 	"github.com/thediveo/morbyd/timestamper"
-	"github.com/thediveo/once"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
 	"github.com/thediveo/whalewatcher/engineclient/cri/test/img"
@@ -269,7 +269,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 
 		It("watches", func(ctx context.Context) {
 			ctx, cancel := context.WithCancel(ctx)
-			closeOnce := once.Once(func() { cancel() }).Do
+			closeOnce := sync.OnceFunc(func() { cancel() })
 			defer closeOnce()
 
 			cntrevch, errch := cw.LifecycleEvents(ctx)

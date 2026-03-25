@@ -5,6 +5,9 @@
 		}
 	],
 	"settings": {
+		"markdown.styles": [
+			"./.vscode/markdown-preview.css"
+		],
 		"makefile.extensionOutputFolder": "./.vscode",
 		"terminal.integrated.scrollback": 10000
 	},

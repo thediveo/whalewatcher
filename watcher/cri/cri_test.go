@@ -36,6 +36,7 @@ import (
 	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/success"
+	. "github.com/thediveo/testily/concur"
 )
 
 var slowSpec = NodeTimeout(30 * time.Second)
@@ -178,11 +179,7 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 
 		It("watches", slowSpec, func(ctx context.Context) {
 			ctx, cancel := context.WithCancel(ctx)
-			done := make(chan struct{})
-			go func() {
-				_ = mw.Watch(ctx)
-				close(done)
-			}()
+			done := CloseWhenGone(func() { _ = mw.Watch(ctx) })
 
 			cric, ok := mw.Client().(*criengine.Client)
 			Expect(ok).To(BeTrue())

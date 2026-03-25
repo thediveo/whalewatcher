@@ -17,6 +17,8 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/containerd/containerd"
@@ -28,8 +30,6 @@ import (
 	"github.com/containerd/typeurl/v2"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // Type specifies this container engine's type identifier.
