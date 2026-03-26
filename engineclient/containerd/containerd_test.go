@@ -20,8 +20,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/thediveo/morbyd"
 	"github.com/thediveo/morbyd/build"
 	"github.com/thediveo/morbyd/exec"
@@ -159,11 +159,11 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			// properly resolved.
 			endpointPath = fmt.Sprintf("/proc/%d/root%s",
 				pid, "/run/containerd/containerd.sock")
-			var cdclient *containerd.Client
+			var cdclient *client.Client
 			Eventually(func() error {
 				var err error
-				cdclient, err = containerd.New(endpointPath,
-					containerd.WithTimeout(5*time.Second))
+				cdclient, err = client.New(endpointPath,
+					client.WithTimeout(5*time.Second))
 				return err
 			}).Within(30*time.Second).ProbeEvery(1*time.Second).
 				Should(Succeed(), "containerd API never became responsive")
@@ -172,7 +172,7 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 			By("setup completed")
 		})
 
-		var cdclient *containerd.Client
+		var cdclient *client.Client
 
 		BeforeEach(func() {
 			goodgos := Goroutines()
@@ -184,8 +184,8 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 				Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
 			})
 
-			cdclient = Successful(containerd.New(endpointPath,
-				containerd.WithTimeout(5*time.Second)))
+			cdclient = Successful(client.New(endpointPath,
+				client.WithTimeout(5*time.Second)))
 		})
 
 		It("has engine ID and version", func(ctx context.Context) {

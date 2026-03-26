@@ -16,7 +16,7 @@ package containerd
 
 import (
 	"github.com/cenkalti/backoff/v4"
-	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/v2/client"
 	engineclient "github.com/thediveo/whalewatcher/engineclient/containerd"
 	"github.com/thediveo/whalewatcher/watcher"
 )
@@ -39,7 +39,7 @@ func New(containerdsock string, buggeroff backoff.BackOff, opts ...engineclient.
 	if containerdsock == "" {
 		containerdsock = "/run/containerd/containerd.sock"
 	}
-	cdclient, err := containerd.New(containerdsock)
+	cdclient, err := client.New(containerdsock)
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/containerd/containerd/pkg/dialer"
+	"github.com/containerd/containerd/v2/pkg/dialer"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"

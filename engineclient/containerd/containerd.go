@@ -21,15 +21,16 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/api/events"
+	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/api/types/task"
-	"github.com/containerd/containerd/containers"
-	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/containers"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/typeurl/v2"
 	"github.com/thediveo/whalewatcher"
 	"github.com/thediveo/whalewatcher/engineclient"
+	"google.golang.org/grpc"
 )
 
 // Type specifies this container engine's type identifier.
@@ -64,7 +65,7 @@ const nsdelemiter = "/"
 // whale watching with containerd daemons.
 type ContainerdWatcher struct {
 	pid               int                         // optional engine PID when known.
-	client            *containerd.Client          // containerd API client.
+	client            *client.Client              // containerd API client.
 	packer            engineclient.RucksackPacker // optional Rucksack packer for app-specific container information.
 	ignoredNamespaces []string
 }
@@ -72,7 +73,7 @@ type ContainerdWatcher struct {
 // NewContainerdWatcher returns a new ContainerdWatcher using the specified
 // containerd engine client; normally, you would want to use this lower-level
 // constructor only in unit tests.
-func NewContainerdWatcher(client *containerd.Client, opts ...NewOption) *ContainerdWatcher {
+func NewContainerdWatcher(client *client.Client, opts ...NewOption) *ContainerdWatcher {
 	cw := &ContainerdWatcher{
 		client:            client,
 		ignoredNamespaces: IgnoredNamespaces,
@@ -147,7 +148,12 @@ func (cw *ContainerdWatcher) Version(ctx context.Context) string {
 }
 
 // API returns the container engine API path.
-func (cw *ContainerdWatcher) API() string { return cw.client.Conn().Target() }
+func (cw *ContainerdWatcher) API() string {
+	if conn, ok := cw.client.Conn().(*grpc.ClientConn); ok {
+		return conn.Target()
+	}
+	return ""
+}
 
 // PID returns the container engine PID, when known.
 func (cw *ContainerdWatcher) PID() int { return cw.pid }
@@ -308,54 +314,62 @@ func (cw *ContainerdWatcher) LifecycleEvents(ctx context.Context) (
 				}
 				cntrerrstream <- err
 				return
-			case ev := <-evs:
+			case env := <-evs:
 				// We here ignore Docker's containerd namespace, as "genuine"
 				// Docker containers must be handled at the level of the Docker
 				// daemon (API) instead. The reason is that there's no Docker
 				// container name at the containerd level, only the container
 				// ID.
-				if slices.Contains(cw.ignoredNamespaces, ev.Namespace) {
-					continue
-				}
-				details, err := typeurl.UnmarshalAny(ev.Event)
-				if err != nil {
+				if slices.Contains(cw.ignoredNamespaces, env.Namespace) {
 					continue
 				}
 				// Unfortunately, containerd engine events differ from Docker
 				// engine events in that the task start/stop events do not carry
 				// any container labels. and especially not a composer project
 				// label.
-				switch ev.Topic {
+				switch env.Topic {
 				case "/tasks/start":
-					taskstart := details.(*events.TaskStart)
+					var taskstart apievents.TaskStart
+					if err := typeurl.UnmarshalTo(env.Event, &taskstart); err != nil {
+						continue
+					}
 					cntreventstream <- engineclient.ContainerEvent{
-						Timestamp: ev.Timestamp,
+						Timestamp: env.Timestamp,
 						Type:      engineclient.ContainerStarted,
-						ID:        displayID(ev.Namespace, taskstart.ContainerID),
+						ID:        displayID(env.Namespace, taskstart.ContainerID),
 						Project:   engineclient.ProjectUnknown,
 					}
 				case "/tasks/exit":
-					taskexit := details.(*events.TaskExit)
+					var taskexit apievents.TaskExit
+					if err := typeurl.UnmarshalTo(env.Event, &taskexit); err != nil {
+						continue
+					}
 					cntreventstream <- engineclient.ContainerEvent{
-						Timestamp: ev.Timestamp,
+						Timestamp: env.Timestamp,
 						Type:      engineclient.ContainerExited,
-						ID:        displayID(ev.Namespace, taskexit.ContainerID),
+						ID:        displayID(env.Namespace, taskexit.ContainerID),
 						Project:   engineclient.ProjectUnknown,
 					}
 				case "/tasks/paused":
-					taskpaused := details.(*events.TaskPaused)
+					var taskpaused apievents.TaskPaused
+					if err := typeurl.UnmarshalTo(env.Event, &taskpaused); err != nil {
+						continue
+					}
 					cntreventstream <- engineclient.ContainerEvent{
-						Timestamp: ev.Timestamp,
+						Timestamp: env.Timestamp,
 						Type:      engineclient.ContainerPaused,
-						ID:        displayID(ev.Namespace, taskpaused.ContainerID),
+						ID:        displayID(env.Namespace, taskpaused.ContainerID),
 						Project:   engineclient.ProjectUnknown,
 					}
 				case "/tasks/resumed":
-					taskresumed := details.(*events.TaskResumed)
+					var taskresumed apievents.TaskResumed
+					if err := typeurl.UnmarshalTo(env.Event, &taskresumed); err != nil {
+						continue
+					}
 					cntreventstream <- engineclient.ContainerEvent{
-						Timestamp: ev.Timestamp,
+						Timestamp: env.Timestamp,
 						Type:      engineclient.ContainerUnpaused,
-						ID:        displayID(ev.Namespace, taskresumed.ContainerID),
+						ID:        displayID(env.Namespace, taskresumed.ContainerID),
 						Project:   engineclient.ProjectUnknown,
 					}
 				}

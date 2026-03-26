@@ -111,7 +111,7 @@ The events sent by `containerd` are of included in an "envelope" of type
   from containerd's event API must have been registered by:
 
   ```golang
-  import _ "github.com/containerd/containerd/api/events"
+  import _ "github.com/containerd/containerd/v2/api/events"
   ```
 
 Depending on the `Topic`, the following Event types are seen; please note that
