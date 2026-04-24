@@ -21,6 +21,6 @@ import (
 
 // HaveName succeeds if the actual value has a "Name" field and matches the
 // specified name.
-func HaveName(name interface{}) types.GomegaMatcher {
+func HaveName(name any) types.GomegaMatcher {
 	return o.HaveField("Name", name)
 }

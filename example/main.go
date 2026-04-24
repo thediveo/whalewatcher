@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/thediveo/whalewatcher/watcher/moby"
+	"github.com/thediveo/whalewatcher/v2/watcher/moby"
 )
 
 func main() {

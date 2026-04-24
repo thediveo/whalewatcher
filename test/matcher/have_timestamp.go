@@ -21,6 +21,6 @@ import (
 
 // HaveTimestamp succeeds if the actual value has a "Timestamp" field and
 // matches the specified timestamp.
-func HaveTimestamp(ts interface{}) types.GomegaMatcher {
+func HaveTimestamp(ts any) types.GomegaMatcher {
 	return o.HaveField("Timestamp", ts)
 }

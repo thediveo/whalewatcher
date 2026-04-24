@@ -15,9 +15,10 @@
 package matcher
 
 import (
+	"github.com/thediveo/whalewatcher/v2/engineclient"
+
 	o "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
-	"github.com/thediveo/whalewatcher/engineclient"
 )
 
 // HaveEventType succeeds if the actual value has a "Type" field with the

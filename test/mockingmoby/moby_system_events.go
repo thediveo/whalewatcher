@@ -18,7 +18,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/docker/docker/api/types/events"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/client"
 )
 
 // ErrEventStreamStopped is the error send via the error stream after invoking
@@ -32,25 +33,25 @@ var ErrEventStreamStopped = errors.New("event stream stopped")
 //
 // Please note that only a single call to the Events API method is supported per
 // mock client instance.
-func (mm *MockingMoby) Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error) {
-	events := make(chan events.Message, 10)
-	errs := make(chan error, 1)
+func (mm *MockingMoby) Events(ctx context.Context, options client.EventsListOptions) client.EventsResult {
+	eventch := make(chan events.Message, 10)
+	errch := make(chan error, 1)
 	abort := make(chan error, 1)
 	mm.emux.Lock()
-	mm.events = events
-	mm.errs = errs
+	mm.events = eventch
+	mm.errs = errch
 	mm.abort = abort
 	mm.emux.Unlock()
 	// Wait in the background for the context to become (well?) done, then
 	// propagate any context error to our event error channel and finally be
 	// done with it all.
 	go func() {
-		defer close(errs)
+		defer close(errch)
 		select {
 		case <-ctx.Done():
-			errs <- ctx.Err()
+			errch <- ctx.Err()
 		case err := <-abort:
-			errs <- err
+			errch <- err
 		}
 		mm.emux.Lock()
 		defer mm.emux.Unlock()
@@ -58,7 +59,7 @@ func (mm *MockingMoby) Events(ctx context.Context, options events.ListOptions) (
 		mm.errs = nil
 		mm.abort = nil
 	}()
-	return events, errs
+	return client.EventsResult{Messages: eventch, Err: errch}
 }
 
 // StopEvents closes down streaming events with an error on the error channel;

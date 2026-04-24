@@ -15,9 +15,10 @@
 package matcher
 
 import (
+	"github.com/thediveo/whalewatcher/v2/engineclient"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/thediveo/whalewatcher/engineclient"
 )
 
 var _ = Describe("HaveEventType matcher", func() {

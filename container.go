@@ -41,7 +41,7 @@ type Container struct {
 	PID      int               // PID of container's initial ("ealdorman") process.
 	Project  string            // optional composer project name, or zero.
 	Paused   bool              // true if container is paused, false if running.
-	Rucksack interface{}       // optional additional application-specific container information.
+	Rucksack any               // optional additional application-specific container information.
 }
 
 // ProjectName returns the name of the composer project for this container, if

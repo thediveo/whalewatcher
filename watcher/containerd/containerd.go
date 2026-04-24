@@ -17,8 +17,9 @@ package containerd
 import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/containerd/containerd/v2/client"
-	engineclient "github.com/thediveo/whalewatcher/engineclient/containerd"
-	"github.com/thediveo/whalewatcher/watcher"
+
+	engineclient "github.com/thediveo/whalewatcher/v2/engineclient/containerd"
+	"github.com/thediveo/whalewatcher/v2/watcher"
 )
 
 // Type ID of the container engine handled by this watcher.

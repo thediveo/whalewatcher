@@ -60,12 +60,12 @@ func visitUTS(pid int, fn func()) {
 	if err != nil {
 		return
 	}
-	defer unix.Close(origUTSfd)
+	defer func() { _ = unix.Close(origUTSfd) }()
 	newUTSfd, err := unix.Open("/proc/"+strconv.Itoa(pid)+"/ns/uts", unix.O_RDONLY, 0)
 	if err != nil {
 		return
 	}
-	defer unix.Close(newUTSfd)
+	defer func() { _ = unix.Close(newUTSfd) }()
 
 	done := make(chan struct{})
 	go func() {

@@ -16,41 +16,40 @@ package mockingmoby
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/errdefs"
+	"github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // ContainerInspect returns details about a particular mocked container.
-func (mm *MockingMoby) ContainerInspect(ctx context.Context, nameorid string) (types.ContainerJSON, error) {
+func (mm *MockingMoby) ContainerInspect(ctx context.Context, nameorid string, options client.ContainerInspectOptions) (client.ContainerInspectResult, error) {
 	if err := isCtxCancelled(ctx); err != nil {
-		return types.ContainerJSON{}, err
+		return client.ContainerInspectResult{}, err
 	}
 	if err := callHook(ctx, ContainerInspectPre); err != nil {
-		return types.ContainerJSON{}, err
+		return client.ContainerInspectResult{}, err
 	}
 	c, ok := mm.lookup(nameorid)
 	if err := callHook(ctx, ContainerInspectPost); err != nil {
-		return types.ContainerJSON{}, err
+		return client.ContainerInspectResult{}, err
 	}
 	if !ok {
-		return types.ContainerJSON{}, errdefs.NotFound(fmt.Errorf("no such container %q", nameorid))
+		return client.ContainerInspectResult{}, errwrap(errdefs.ErrNotFound, "no such container %q", nameorid)
 	}
-	return types.ContainerJSON{
-		ContainerJSONBase: &types.ContainerJSONBase{
+	return client.ContainerInspectResult{
+		Container: container.InspectResponse{
 			ID:   c.ID,
 			Name: "/" + c.Name,
-			State: &types.ContainerState{
-				Status:  MockedStatus[c.Status],
+			State: &container.State{
+				Status:  MockedContainerStates[c.Status],
 				Running: c.Status == MockedRunning || c.Status == MockedPaused,
 				Paused:  c.Status == MockedPaused,
 				Pid:     c.PID,
 			},
-		},
-		Config: &container.Config{
-			Labels: c.Labels,
+			Config: &container.Config{
+				Labels: c.Labels,
+			},
 		},
 	}, nil
 }

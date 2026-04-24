@@ -21,9 +21,10 @@ import (
 	"maps"
 	"time"
 
-	"github.com/thediveo/whalewatcher"
-	"github.com/thediveo/whalewatcher/engineclient"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
+
+	"github.com/thediveo/whalewatcher/v2"
+	"github.com/thediveo/whalewatcher/v2/engineclient"
 )
 
 // AnnotationKeyPrefix prefixes all Kubernetes annotation keys in order to avoid
@@ -139,11 +140,11 @@ func (cw *CRIWatcher) API() string { return cw.client.conn.Target() }
 func (cw *CRIWatcher) PID() int { return cw.pid }
 
 // Client returns the underlying engine client (engine-specific).
-func (cw *CRIWatcher) Client() interface{} { return cw.client }
+func (cw *CRIWatcher) Client() any { return cw.client }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (cw *CRIWatcher) Close() {
-	cw.client.conn.Close()
+	_ = cw.client.conn.Close()
 }
 
 // List all the currently alive and kicking containers (including pod sandboxes,
@@ -228,7 +229,7 @@ func (cw *CRIWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatch
 func (cw *CRIWatcher) newContainer(
 	ctx context.Context,
 	cntr *runtime.Container,
-	optPod *runtime.PodSandbox,
+	_ *runtime.PodSandbox,
 ) *whalewatcher.Container {
 	if cntr.State != runtime.ContainerState_CONTAINER_RUNNING {
 		return nil

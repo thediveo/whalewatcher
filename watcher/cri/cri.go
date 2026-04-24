@@ -16,8 +16,9 @@ package cri
 
 import (
 	"github.com/cenkalti/backoff/v4"
-	engineclient "github.com/thediveo/whalewatcher/engineclient/cri"
-	"github.com/thediveo/whalewatcher/watcher"
+
+	engineclient "github.com/thediveo/whalewatcher/v2/engineclient/cri"
+	"github.com/thediveo/whalewatcher/v2/watcher"
 )
 
 // Type ID of the container engine handled by this watcher.

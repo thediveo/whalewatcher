@@ -51,7 +51,7 @@ var _ = Describe("mockingmoby", func() {
 		mm := NewMockingMoby()
 		Expect(mm.DaemonHost()).NotTo(BeEmpty())
 
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 		mm.AddContainer(mockingMoby)
 
 		_, ok := mm.lookup("foo")

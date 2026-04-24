@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/thediveo/whalewatcher"
+	"github.com/thediveo/whalewatcher/v2"
 )
 
 // EngineClient defines the generic methods needed in order to watch the
@@ -51,20 +51,19 @@ type EngineClient interface {
 	PID() int
 
 	// Underlying engine client (engine-specific).
-	Client() interface{}
+	Client() any
 
 	// Clean up and release any engine client resources, if necessary.
 	Close()
 }
 
-// Allow an engine client to do some final pre-flight operations right
-// before starting a watch, where the preflight ops might require
-// talking to a particular engine and thus should be controlled by a
-// context.
+// Preflighter allows an engine client to do some final pre-flight operations
+// right before starting a watch, where the preflight ops might require talking
+// to a particular engine and thus should be controlled by a context.
 //
 // The raison d'être at this time is to avoid a race condition in the Docker
-// client API version negotiation that otherwise trips our race-enabled
-// tests and thus makes us blind for race violations in our own code base.
+// client API version negotiation that otherwise trips our race-enabled tests
+// and thus makes us blind for race violations in our own code base.
 type Preflighter interface {
 	// Run "preflight" tasks just right before starting a Watch.
 	Preflight(ctx context.Context)
@@ -76,7 +75,7 @@ type Preflighter interface {
 // application-specific container information beyond the stock information
 // always maintained by the whalewatcher module.
 type RucksackPacker interface {
-	Pack(container *whalewatcher.Container, inspection interface{})
+	Pack(container *whalewatcher.Container, inspection any)
 }
 
 // Trialer optionally allows an engine client to update cached engine

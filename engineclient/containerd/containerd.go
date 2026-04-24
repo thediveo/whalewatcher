@@ -28,9 +28,10 @@ import (
 	"github.com/containerd/containerd/v2/core/containers"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/typeurl/v2"
-	"github.com/thediveo/whalewatcher"
-	"github.com/thediveo/whalewatcher/engineclient"
 	"google.golang.org/grpc"
+
+	"github.com/thediveo/whalewatcher/v2"
+	"github.com/thediveo/whalewatcher/v2/engineclient"
 )
 
 // Type specifies this container engine's type identifier.
@@ -159,11 +160,11 @@ func (cw *ContainerdWatcher) API() string {
 func (cw *ContainerdWatcher) PID() int { return cw.pid }
 
 // Client returns the underlying engine client (engine-specific).
-func (cw *ContainerdWatcher) Client() interface{} { return cw.client }
+func (cw *ContainerdWatcher) Client() any { return cw.client }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (cw *ContainerdWatcher) Close() {
-	cw.client.Close()
+	_ = cw.client.Close()
 }
 
 // List all the currently alive and kicking containers, but do not list any

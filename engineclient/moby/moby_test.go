@@ -17,28 +17,29 @@ package moby
 import (
 	"context"
 
-	docktainer "github.com/docker/docker/api/types/container"
-	"github.com/thediveo/whalewatcher"
-	"github.com/thediveo/whalewatcher/engineclient"
-	"github.com/thediveo/whalewatcher/test/mockingmoby"
+	"github.com/moby/moby/client"
+
+	"github.com/thediveo/whalewatcher/v2"
+	"github.com/thediveo/whalewatcher/v2/engineclient"
+	. "github.com/thediveo/whalewatcher/v2/test/matcher"
+	"github.com/thediveo/whalewatcher/v2/test/mockingmoby"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/success"
-	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 type packer struct{}
 
-func (p *packer) Pack(container *whalewatcher.Container, inspection interface{}) {
+func (p *packer) Pack(container *whalewatcher.Container, inspection any) {
 	Expect(container).NotTo(BeNil())
 	Expect(inspection).NotTo(BeNil())
-	var details docktainer.InspectResponse
+	var details client.ContainerInspectResult
 	Expect(inspection).To(BeAssignableToTypeOf(details))
-	details = inspection.(docktainer.InspectResponse)
-	container.Rucksack = &details
+	details = inspection.(client.ContainerInspectResult)
+	container.Rucksack = &details.Container
 }
 
 var (

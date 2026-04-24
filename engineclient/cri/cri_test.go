@@ -22,22 +22,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/thediveo/morbyd"
-	"github.com/thediveo/morbyd/build"
-	"github.com/thediveo/morbyd/run"
-	"github.com/thediveo/morbyd/session"
-	"github.com/thediveo/morbyd/timestamper"
-	"github.com/thediveo/whalewatcher"
-	"github.com/thediveo/whalewatcher/engineclient"
-	"github.com/thediveo/whalewatcher/engineclient/cri/test/img"
-	"github.com/thediveo/whalewatcher/test"
-	"github.com/thediveo/whalewatcher/test/matcher"
+	"github.com/thediveo/morbyd/v2"
+	"github.com/thediveo/morbyd/v2/build"
+	"github.com/thediveo/morbyd/v2/run"
+	"github.com/thediveo/morbyd/v2/session"
+	"github.com/thediveo/morbyd/v2/timestamper"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
+
+	"github.com/thediveo/whalewatcher/v2"
+	"github.com/thediveo/whalewatcher/v2/engineclient"
+	"github.com/thediveo/whalewatcher/v2/engineclient/cri/test/img"
+	"github.com/thediveo/whalewatcher/v2/test"
+	. "github.com/thediveo/whalewatcher/v2/test/matcher"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/thediveo/success"
-	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 const (
@@ -136,7 +136,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 			}).Within(30*time.Second).ProbeEvery(1*time.Second).
 				Should(Succeed(), "CRI API provider never became responsive")
 			DeferCleanup(func() {
-				cricl.Close()
+				_ = cricl.Close()
 				cricl = nil
 			})
 			Expect(cricl.Address()).To(HaveSuffix(endpoint))
@@ -361,7 +361,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 
 			By("waiting for the container and pod stopped events")
 			Eventually(cntrevch).Within(5 * time.Second).ProbeEvery(100 * time.Millisecond).
-				Should(Receive(matcher.All(
+				Should(Receive(All(
 					And(
 						HaveTimestamp(Not(BeZero())),
 						HaveField("Type", engineclient.ContainerExited),

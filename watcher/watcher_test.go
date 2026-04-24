@@ -21,9 +21,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/thediveo/whalewatcher/engineclient"
-	"github.com/thediveo/whalewatcher/engineclient/moby"
-	"github.com/thediveo/whalewatcher/test/mockingmoby"
+
+	"github.com/thediveo/whalewatcher/v2/engineclient"
+	"github.com/thediveo/whalewatcher/v2/engineclient/moby"
+	"github.com/thediveo/whalewatcher/v2/test/mockingmoby"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,26 +62,26 @@ var (
 type trialEngine struct {
 	engineclient.EngineClient
 
-	Retries uint32 // the first number of trials to fail
-	trials  uint32 // number of backoff trials
+	Retries uint32        // the first number of trials to fail
+	trials  atomic.Uint32 // number of backoff trials
 }
 
 // Trials returns the number of backoff trails so far.
 func (e *trialEngine) Trials() uint32 {
-	return atomic.LoadUint32(&e.trials)
+	return e.trials.Load()
 }
 
 var _ engineclient.Trialer = (*trialEngine)(nil)
 
 // ClearTrials resets the trial counter.
 func (e *trialEngine) ClearTrials() {
-	atomic.StoreUint32(&e.trials, 0)
+	e.trials.Store(0)
 }
 
 // Try counts the number of trials and returns an error for the first (number
 // of) Retries.
 func (e *trialEngine) Try(ctx context.Context) error {
-	if atomic.AddUint32(&e.trials, 1) <= e.Retries {
+	if e.trials.Add(1) <= e.Retries {
 		return errors.New("thou shall retry")
 	}
 	return nil

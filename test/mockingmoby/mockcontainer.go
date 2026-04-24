@@ -14,13 +14,15 @@
 
 package mockingmoby
 
-// MockedContainerStatus is a compressed, only-essentials, no-bulls version of
+import "github.com/moby/moby/api/types/container"
+
+// MockedContainerState is a compressed, only-essentials, no-bulls version of
 // Docker's types.ContainerStatus.
-type MockedContainerStatus int
+type MockedContainerState int
 
 // The available states of a mocked container.
 const (
-	MockedCreated MockedContainerStatus = iota
+	MockedCreated MockedContainerState = iota
 	MockedRunning
 	MockedPaused
 	MockedDead
@@ -30,7 +32,7 @@ const (
 // MockedStates maps the states of a mocked container to Docker's textual
 // descriptive (and slightly chatty) container states, suitable for display to
 // hoomans.
-var MockedStates = map[MockedContainerStatus]string{
+var MockedStates = map[MockedContainerState]string{
 	MockedCreated: "",
 	MockedRunning: "up for ages",
 	MockedPaused:  "pausing a moment",
@@ -38,10 +40,10 @@ var MockedStates = map[MockedContainerStatus]string{
 	MockedExited:  "exit 42",
 }
 
-// MockedStatus maps the states of a mocked container to Docker's container
+// MockedContainerStates maps the states of a mocked container to Docker's container
 // status strings that is better suited for code checks (no chatty additions and
 // content variations).
-var MockedStatus = map[MockedContainerStatus]string{
+var MockedContainerStates = map[MockedContainerState]container.ContainerState{
 	MockedCreated: "created",
 	MockedRunning: "running",
 	MockedPaused:  "paused",
@@ -53,9 +55,9 @@ var MockedStatus = map[MockedContainerStatus]string{
 // it just stores the minimum of information we need in mocking our own unit
 // tests.
 type MockedContainer struct {
-	ID     string                // unique identifier of container
-	Name   string                // name of container without any prefixing "/"
-	Status MockedContainerStatus // container status (without any thrills)
-	PID    int                   // PID of initial container process if container is "alive"
-	Labels map[string]string     // container labels
+	ID     string               // unique identifier of container
+	Name   string               // name of container without any prefixing "/"
+	Status MockedContainerState // container status (without any thrills)
+	PID    int                  // PID of initial container process if container is "alive"
+	Labels map[string]string    // container labels
 }

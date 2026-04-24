@@ -15,7 +15,7 @@
 package matcher
 
 import (
-	"github.com/thediveo/whalewatcher"
+	"github.com/thediveo/whalewatcher/v2"
 
 	. "github.com/onsi/gomega"
 )
