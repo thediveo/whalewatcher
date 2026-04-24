@@ -5,11 +5,43 @@
 		}
 	],
 	"settings": {
+		"go.lintTool": "golangci-lint-v2",
+		"go.alternateTools": {
+			"customFormatter": "golangci-lint-v2"
+		},
+		"go.formatTool": "custom",
+		"go.formatFlags": [
+			"fmt",
+			"--stdin"
+		],
+		"go.testTimeout": "300s",
+		"go.testFlags": [
+			"-v",
+			"-race",
+			"-ginkgo.v",
+			"-ginkgo.no-color"
+		],
+		"gopls": {
+			"ui.semanticTokens": true,
+			// https://github.com/golang/vscode-go/blob/master/docs/settings.md#uidiagnosticanalyses
+			"ui.diagnostic.analyses": {},
+			// https://github.com/golang/vscode-go/blob/master/docs/settings.md#uicodelenses
+			"ui.codelenses": {
+				"vulncheck": true,
+			}
+		},
 		"markdown.styles": [
 			"./.vscode/markdown-preview.css"
 		],
-		"makefile.extensionOutputFolder": "./.vscode",
-		"terminal.integrated.scrollback": 10000
+		"statsBar.memoUsage.format": "$(chip) ${used}/${total} ${unit}, ${percent}%",
+		"statsBar.location": "Right",
+		"go.lintOnSave": "workspace",
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-vscode.live-server",
+			"njzy.stats-bar"
+		]
 	},
 	"launch": {
 		"version": "0.2.0",

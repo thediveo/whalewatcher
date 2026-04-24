@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/client"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,82 +30,82 @@ var _ = Describe("inspects mocked containers", func() {
 
 	It("inspects containers by ID and name", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 
-		Expect(mm.ContainerInspect(context.Background(), "foo")).Error().To(HaveOccurred())
+		Expect(mm.ContainerInspect(context.Background(), "foo", client.ContainerInspectOptions{})).Error().To(HaveOccurred())
 
 		mm.AddContainer(furiousFuruncle)
-		details := Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.ID))
+		details := Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.ID, client.ContainerInspectOptions{}))
 		cmatcher := MatchFields(IgnoreExtras, Fields{
-			"ContainerJSONBase": PointTo(MatchFields(IgnoreExtras, Fields{
+			"Container": MatchFields(IgnoreExtras, Fields{
 				"ID":   Equal(furiousFuruncle.ID),
 				"Name": Equal("/" + furiousFuruncle.Name),
 				"State": PointTo(MatchFields(IgnoreExtras, Fields{
-					"Status":  Equal(MockedStatus[furiousFuruncle.Status]),
+					"Status":  Equal(MockedContainerStates[furiousFuruncle.Status]),
 					"Running": BeTrue(),
 					"Paused":  BeFalse(),
 					"Pid":     Equal(furiousFuruncle.PID),
 				})),
-			})),
-			"Config": PointTo(MatchFields(IgnoreExtras, Fields{
-				"Labels": Equal(furiousFuruncle.Labels),
-			})),
+				"Config": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Labels": Equal(furiousFuruncle.Labels),
+				})),
+			}),
 		})
 		Expect(details).To(cmatcher)
 
-		details = Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.Name))
+		details = Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.Name, client.ContainerInspectOptions{}))
 		Expect(details).To(cmatcher)
 	})
 
 	It("inspects status correctly", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 		mm.AddContainer(furiousFuruncle)
 		mm.StopContainer(furiousFuruncle.Name)
-		details := Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.Name))
+		details := Successful(mm.ContainerInspect(context.Background(), furiousFuruncle.Name, client.ContainerInspectOptions{}))
 		Expect(details).To(MatchFields(IgnoreExtras, Fields{
-			"ContainerJSONBase": PointTo(MatchFields(IgnoreExtras, Fields{
+			"Container": MatchFields(IgnoreExtras, Fields{
 				"ID":   Equal(furiousFuruncle.ID),
 				"Name": Equal("/" + furiousFuruncle.Name),
 				"State": PointTo(MatchFields(IgnoreExtras, Fields{
-					"Status":  Equal(MockedStatus[MockedExited]),
+					"Status":  Equal(MockedContainerStates[MockedExited]),
 					"Running": BeFalse(),
 					"Paused":  BeFalse(),
 					"Pid":     BeZero(),
 				})),
-			})),
-			"Config": PointTo(MatchFields(IgnoreExtras, Fields{
-				"Labels": Equal(furiousFuruncle.Labels),
-			})),
+				"Config": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Labels": Equal(furiousFuruncle.Labels),
+				})),
+			}),
 		}))
 
 		mm.AddContainer(pausingPm)
-		details = Successful(mm.ContainerInspect(context.Background(), pausingPm.Name))
+		details = Successful(mm.ContainerInspect(context.Background(), pausingPm.Name, client.ContainerInspectOptions{}))
 		Expect(details).To(MatchFields(IgnoreExtras, Fields{
-			"ContainerJSONBase": PointTo(MatchFields(IgnoreExtras, Fields{
+			"Container": MatchFields(IgnoreExtras, Fields{
 				"ID": Equal(pausingPm.ID),
 				"State": PointTo(MatchFields(IgnoreExtras, Fields{
-					"Status":  Equal(MockedStatus[pausingPm.Status]),
+					"Status":  Equal(MockedContainerStates[pausingPm.Status]),
 					"Running": BeTrue(),
 					"Paused":  BeTrue(),
 				})),
-			})),
+			}),
 		}))
 	})
 
 	It("recognizes cancelled context", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Expect(mm.ContainerInspect(ctx, "foo")).Error().To(HaveOccurred())
+		Expect(mm.ContainerInspect(ctx, "foo", client.ContainerInspectOptions{})).Error().To(HaveOccurred())
 	})
 
 	It("registers and calls hooks", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 		doh := errors.New("doh!")
 
 		Expect(mm.ContainerList(
@@ -115,8 +115,8 @@ var _ = Describe("inspects mocked containers", func() {
 				func(key HookKey) error {
 					Expect(key).To(Equal(ContainerListPost))
 					return doh
-				}), container.ListOptions{})).
-			Error().To(Equal(doh))
+				}), client.ContainerListOptions{})).
+			Error().To(BeEquivalentTo(doh))
 
 		Expect(mm.ContainerList(
 			WithHook(
@@ -124,8 +124,8 @@ var _ = Describe("inspects mocked containers", func() {
 				ContainerListPre,
 				func(HookKey) error {
 					return doh
-				}), container.ListOptions{})).
-			Error().To(Equal(doh))
+				}), client.ContainerListOptions{})).
+			Error().To(BeEquivalentTo(doh))
 	})
 
 })

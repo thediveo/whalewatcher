@@ -21,6 +21,6 @@ import (
 
 // HaveID succeeds if the actual value has an "ID" field and matches the
 // specified id.
-func HaveID(id interface{}) types.GomegaMatcher {
+func HaveID(id any) types.GomegaMatcher {
 	return o.HaveField("ID", id)
 }

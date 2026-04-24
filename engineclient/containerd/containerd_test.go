@@ -22,22 +22,23 @@ import (
 
 	"github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
-	"github.com/thediveo/morbyd"
-	"github.com/thediveo/morbyd/build"
-	"github.com/thediveo/morbyd/exec"
-	"github.com/thediveo/morbyd/run"
-	"github.com/thediveo/morbyd/timestamper"
-	"github.com/thediveo/whalewatcher"
-	"github.com/thediveo/whalewatcher/engineclient"
-	"github.com/thediveo/whalewatcher/engineclient/containerd/test/img"
-	"github.com/thediveo/whalewatcher/test"
+	"github.com/thediveo/morbyd/v2"
+	"github.com/thediveo/morbyd/v2/build"
+	"github.com/thediveo/morbyd/v2/exec"
+	"github.com/thediveo/morbyd/v2/run"
+	"github.com/thediveo/morbyd/v2/timestamper"
+
+	"github.com/thediveo/whalewatcher/v2"
+	"github.com/thediveo/whalewatcher/v2/engineclient"
+	"github.com/thediveo/whalewatcher/v2/engineclient/containerd/test/img"
+	"github.com/thediveo/whalewatcher/v2/test"
+	. "github.com/thediveo/whalewatcher/v2/test/matcher"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gleak"
 	. "github.com/thediveo/fdooze"
 	. "github.com/thediveo/success"
-	. "github.com/thediveo/whalewatcher/test/matcher"
 )
 
 const (
@@ -53,7 +54,7 @@ const (
 
 type packer struct{}
 
-func (p *packer) Pack(container *whalewatcher.Container, inspection interface{}) {
+func (p *packer) Pack(container *whalewatcher.Container, inspection any) {
 	Expect(container).NotTo(BeNil())
 	Expect(inspection).NotTo(BeNil())
 	var details InspectionDetails
@@ -167,7 +168,7 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 				return err
 			}).Within(30*time.Second).ProbeEvery(1*time.Second).
 				Should(Succeed(), "containerd API never became responsive")
-			cdclient.Close() // not needed anymore, will create fresh ones over and over again
+			_ = cdclient.Close() // not needed anymore, will create fresh ones over and over again
 
 			By("setup completed")
 		})

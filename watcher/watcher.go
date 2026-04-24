@@ -20,8 +20,9 @@ import (
 	"sync"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/thediveo/whalewatcher"
-	"github.com/thediveo/whalewatcher/engineclient"
+
+	"github.com/thediveo/whalewatcher/v2"
+	"github.com/thediveo/whalewatcher/v2/engineclient"
 )
 
 // Watcher allows keeping track of the currently alive containers of a container
@@ -65,7 +66,7 @@ type Watcher interface {
 	// Container engine PID, when known.
 	PID() int
 	// Underlying engine client (engine-specific).
-	Client() interface{}
+	Client() any
 	// Close cleans up and release any engine client resources, if necessary.
 	Close()
 }
@@ -181,7 +182,7 @@ func (ww *watcher) API() string { return ww.engine.API() }
 func (ww *watcher) PID() int { return ww.engine.PID() }
 
 // Client returns the underlying engine client (engine-specific).
-func (ww *watcher) Client() interface{} { return ww.engine.Client() }
+func (ww *watcher) Client() any { return ww.engine.Client() }
 
 // Close cleans up and release any underlying engine client resources, if
 // necessary. Doesn't care when called multiple times.

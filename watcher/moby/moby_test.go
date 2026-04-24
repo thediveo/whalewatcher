@@ -19,12 +19,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	"github.com/thediveo/morbyd"
-	"github.com/thediveo/morbyd/run"
-	"github.com/thediveo/morbyd/session"
-	"github.com/thediveo/whalewatcher/engineclient/moby"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
+	"github.com/thediveo/morbyd/v2"
+	"github.com/thediveo/morbyd/v2/run"
+	"github.com/thediveo/morbyd/v2/session"
+
+	"github.com/thediveo/whalewatcher/v2/engineclient/moby"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -67,9 +68,8 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 			dc, ok := mw.Client().(client.APIClient)
 			Expect(ok).To(BeTrue())
 			Expect(dc).NotTo(BeNil())
-			networks := Successful(dc.NetworkList(ctx, network.ListOptions{}))
-			nchan <- networks
-			mw.Client().(client.APIClient).NegotiateAPIVersion(ctx)
+			networks := Successful(dc.NetworkList(ctx, client.NetworkListOptions{}))
+			nchan <- networks.Items
 			_ = mw.Watch(ctx)
 		})
 		Consistently(done).WithTimeout(5 * time.Second).WithPolling(250 * time.Millisecond).

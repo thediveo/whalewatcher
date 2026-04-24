@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/v2/pkg/dialer"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
@@ -73,41 +72,41 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 	}
 
 	cl := &Client{}
-
-	if address != "" {
-		backoffConfig := backoff.DefaultConfig
-		backoffConfig.MaxDelay = 3 * time.Second
-		connParams := grpc.ConnectParams{
-			Backoff: backoffConfig,
-		}
-		gopts := []grpc.DialOption{
-			grpc.WithBlock(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.FailOnNonTempDialError(true),
-			grpc.WithConnectParams(connParams),
-			grpc.WithContextDialer(dialer.ContextDialer),
-		}
-		if len(clopts.dialOptions) > 0 {
-			gopts = clopts.dialOptions
-		}
-		connector := func() (*grpc.ClientConn, error) {
-			ctx, cancel := context.WithTimeout(context.Background(), clopts.timeout)
-			defer cancel()
-			conn, err := grpc.DialContext(ctx, dialer.DialAddress(address), gopts...)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to dial %q", address)
-			}
-			return conn, nil
-		}
-		conn, err := connector()
-		if err != nil {
-			return nil, err
-		}
-		cl.conn = conn
+	if address == "" {
+		return cl, nil
 	}
 
+	backoffConfig := backoff.DefaultConfig
+	backoffConfig.MaxDelay = 3 * time.Second
+	connParams := grpc.ConnectParams{
+		Backoff: backoffConfig,
+	}
+	gopts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithConnectParams(connParams),
+		grpc.WithContextDialer(dialer.ContextDialer),
+	}
+	if len(clopts.dialOptions) > 0 {
+		gopts = clopts.dialOptions
+	}
+	conn, err := grpc.NewClient(
+		dialer.DialAddress(address), gopts...)
+	if err != nil {
+		return nil, err
+	}
+	conn.Connect()
+	cl.conn = conn
 	cl.rtcl = runtimev1.NewRuntimeServiceClient(cl.conn)
 	cl.imgcl = runtimev1.NewImageServiceClient(cl.conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), clopts.timeout)
+	defer cancel()
+	_, err = cl.rtcl.Version(ctx, &runtimev1.VersionRequest{})
+	if err != nil {
+		_ = cl.Close()
+		return nil, err
+	}
+
 	return cl, nil
 }
 

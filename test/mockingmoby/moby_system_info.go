@@ -17,17 +17,20 @@ package mockingmoby
 import (
 	"context"
 
-	"github.com/docker/docker/api/types/system"
+	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/client"
 )
 
 // Info returns engine information, consisting only of a fake engine ID, but
 // nothing else.
-func (mm *MockingMoby) Info(ctx context.Context) (system.Info, error) {
+func (mm *MockingMoby) Info(ctx context.Context, options client.InfoOptions) (client.SystemInfoResult, error) {
 	if err := isCtxCancelled(ctx); err != nil {
-		return system.Info{}, err
+		return client.SystemInfoResult{}, err
 	}
-	return system.Info{
-		ID:            "MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY",
-		ServerVersion: "42.66.6",
+	return client.SystemInfoResult{
+		Info: system.Info{
+			ID:            "MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY:MOCK:MOBY",
+			ServerVersion: "42.66.6",
+		},
 	}, nil
 }

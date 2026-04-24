@@ -17,34 +17,34 @@ package mockingmoby
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/client"
 )
 
 // ContainerList returns the list of currently known containers, ignoring any
 // list options.
-func (mm *MockingMoby) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+func (mm *MockingMoby) ContainerList(ctx context.Context, options client.ContainerListOptions) (client.ContainerListResult, error) {
 	if err := isCtxCancelled(ctx); err != nil {
-		return nil, err
+		return client.ContainerListResult{}, err
 	}
 	if err := callHook(ctx, ContainerListPre); err != nil {
-		return nil, err
+		return client.ContainerListResult{}, err
 	}
 	mm.mux.RLock()
-	cntrs := make([]types.Container, 0, len(mm.containers))
+	cntrs := make([]container.Summary, 0, len(mm.containers))
 	for _, c := range mm.containers {
-		cntr := types.Container{
+		cntr := container.Summary{
 			ID:     c.ID,
 			Names:  []string{"/" + c.Name},
 			Labels: c.Labels,
-			State:  MockedStates[c.Status],
-			Status: MockedStatus[c.Status],
+			State:  MockedContainerStates[c.Status],
+			Status: MockedStates[c.Status],
 		}
 		cntrs = append(cntrs, cntr)
 	}
 	mm.mux.RUnlock()
 	if err := callHook(ctx, ContainerListPost); err != nil {
-		return nil, err
+		return client.ContainerListResult{}, err
 	}
-	return cntrs, nil
+	return client.ContainerListResult{Items: cntrs}, nil
 }

@@ -16,10 +16,11 @@ package mockingmoby
 
 import (
 	"context"
+	"maps"
 	"sync"
 
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/client"
 )
 
 // MockingMoby is a mock Docker client implementing only listing all containers,
@@ -56,9 +57,6 @@ func NewMockingMoby() *MockingMoby {
 		names:      map[string]string{},
 	}
 }
-
-// NegotiateAPIVersion is a mock no-op.
-func (mm *MockingMoby) NegotiateAPIVersion(ctx context.Context) {}
 
 // DaemonHost returns the host address used by the client
 func (mm *MockingMoby) DaemonHost() string { return "mock://mocked" }
@@ -193,9 +191,7 @@ func (mm *MockingMoby) lookup(nameorid string) (MockedContainer, bool) {
 // direct emission in the Actor fields of Docker events.
 func MockAttributes(c MockedContainer) map[string]string {
 	attrs := map[string]string{}
-	for ln, lv := range c.Labels {
-		attrs[ln] = lv
-	}
+	maps.Copy(attrs, c.Labels)
 	attrs["name"] = c.Name
 	return attrs
 }

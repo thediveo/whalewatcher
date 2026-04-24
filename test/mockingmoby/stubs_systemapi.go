@@ -17,21 +17,20 @@ package mockingmoby
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/moby/moby/client"
 )
 
 // RegistryLogin is not implemented.
-func (mm *MockingMoby) RegistryLogin(ctx context.Context, auth registry.AuthConfig) (registry.AuthenticateOKBody, error) {
-	return registry.AuthenticateOKBody{}, errNotImplemented
+func (mm *MockingMoby) RegistryLogin(ctx context.Context, auth client.RegistryLoginOptions) (client.RegistryLoginResult, error) {
+	return client.RegistryLoginResult{}, errNotImplemented
 }
 
 // DiskUsage is not implemented.
-func (mm *MockingMoby) DiskUsage(ctx context.Context, options types.DiskUsageOptions) (types.DiskUsage, error) {
-	return types.DiskUsage{}, errNotImplemented
+func (mm *MockingMoby) DiskUsage(ctx context.Context, options client.DiskUsageOptions) (client.DiskUsageResult, error) {
+	return client.DiskUsageResult{}, errNotImplemented
 }
 
 // Ping is not implemented.
-func (mm *MockingMoby) Ping(ctx context.Context) (types.Ping, error) {
-	return types.Ping{}, errNotImplemented
+func (mm *MockingMoby) Ping(ctx context.Context, options client.PingOptions) (client.PingResult, error) {
+	return client.PingResult{}, errNotImplemented
 }

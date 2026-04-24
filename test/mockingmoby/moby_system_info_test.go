@@ -17,6 +17,8 @@ package mockingmoby
 import (
 	"context"
 
+	"github.com/moby/moby/client"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/thediveo/success"
@@ -26,20 +28,20 @@ var _ = Describe("informs", func() {
 
 	It("returns mocked engine information", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
-		info := Successful(mm.Info(context.Background()))
-		Expect(info.ID).To(HaveLen(6*(4+1+4+1) - 1))
-		Expect(info.ServerVersion).NotTo(BeEmpty())
+		defer func() { _ = mm.Close() }()
+		info := Successful(mm.Info(context.Background(), client.InfoOptions{}))
+		Expect(info.Info.ID).To(HaveLen(6*(4+1+4+1) - 1))
+		Expect(info.Info.ServerVersion).NotTo(BeEmpty())
 	})
 
 	It("recognizes cancelled context", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Expect(mm.Info(ctx)).Error().To(HaveOccurred())
+		Expect(mm.Info(ctx, client.InfoOptions{})).Error().To(HaveOccurred())
 	})
 
 })

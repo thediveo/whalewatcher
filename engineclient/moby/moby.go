@@ -19,13 +19,11 @@ import (
 	"maps"
 	"time"
 
-	cerrdefs "github.com/containerd/errdefs"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
-	"github.com/thediveo/whalewatcher"
-	"github.com/thediveo/whalewatcher/engineclient"
+	"github.com/containerd/errdefs"
+	"github.com/moby/moby/client"
+
+	"github.com/thediveo/whalewatcher/v2"
+	"github.com/thediveo/whalewatcher/v2/engineclient"
 )
 
 // Type specifies this container engine's type identifier.
@@ -47,7 +45,6 @@ const PrivilegedLabel = "github.com/thediveo/whalewatcher/moby/privileged"
 type MobyAPIClient interface {
 	client.ContainerAPIClient
 	client.SystemAPIClient
-	NegotiateAPIVersion(ctx context.Context)
 	DaemonHost() string
 	Close() error
 }
@@ -111,11 +108,11 @@ func WithRucksackPacker(packer engineclient.RucksackPacker) NewOption {
 // ID returns the (more or less) unique engine identifier; the exact format is
 // engine-specific.
 func (mw *MobyWatcher) ID(ctx context.Context) string {
-	info, err := mw.moby.Info(ctx)
+	info, err := mw.moby.Info(ctx, client.InfoOptions{})
 	if err != nil {
 		return ""
 	}
-	return info.ID
+	return info.Info.ID
 }
 
 // Type returns the type identifier for this container engine.
@@ -123,11 +120,11 @@ func (mw *MobyWatcher) Type() string { return mw.demontype }
 
 // Version information about the engine.
 func (mw *MobyWatcher) Version(ctx context.Context) string {
-	info, err := mw.moby.Info(ctx)
+	info, err := mw.moby.Info(ctx, client.InfoOptions{})
 	if err != nil {
 		return ""
 	}
-	return info.ServerVersion
+	return info.Info.ServerVersion
 }
 
 // API returns the container engine API path.
@@ -137,20 +134,17 @@ func (mw *MobyWatcher) API() string { return mw.moby.DaemonHost() }
 func (mw *MobyWatcher) PID() int { return mw.pid }
 
 // Client returns the underlying engine client (engine-specific).
-func (mw *MobyWatcher) Client() interface{} { return mw.moby }
+func (mw *MobyWatcher) Client() any { return mw.moby }
 
 // Close cleans up and release any engine client resources, if necessary.
 func (mw *MobyWatcher) Close() {
 	_ = mw.moby.Close()
 }
 
-// Allow an engine client to do some final pre-flight operations that might
-// require talking to a particular engine and thus should be controlled by a
-// context.
-func (mw *MobyWatcher) Preflight(ctx context.Context) {
-	// https://github.com/moby/moby/pull/42379
-	mw.moby.NegotiateAPIVersion(ctx)
-}
+// Preflight allows an engine client to do some final pre-flight operations that
+// might require talking to a particular engine and thus should be controlled by
+// a context.
+func (mw *MobyWatcher) Preflight(ctx context.Context) {}
 
 // List all the currently alive and kicking containers, but do not list any
 // containers without any processes.
@@ -159,18 +153,18 @@ func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, err
 	// further consideration. This is a potentially lengthy operation, as we
 	// need to inspect each potential candidate individually due to the way the
 	// Docker daemon's API is designed.
-	containers, err := mw.moby.ContainerList(ctx, container.ListOptions{})
+	containers, err := mw.moby.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
 		return nil, err // list? what list??
 	}
-	alives := make([]*whalewatcher.Container, 0, len(containers))
-	for _, container := range containers {
+	alives := make([]*whalewatcher.Container, 0, len(containers.Items))
+	for _, container := range containers.Items {
 		alive, err := mw.Inspect(ctx, container.ID)
 		if err != nil {
 			// silently ignore missing containers that have gone since the list
 			// was prepared, but abort on severe problems in order to not keep
 			// this running for too long unnecessarily.
-			if !engineclient.IsProcesslessContainer(err) && !cerrdefs.IsNotFound(err) {
+			if !engineclient.IsProcesslessContainer(err) && !errdefs.IsNotFound(err) {
 				return nil, err
 			}
 			continue
@@ -183,26 +177,26 @@ func (mw *MobyWatcher) List(ctx context.Context) ([]*whalewatcher.Container, err
 // Inspect (only) those container details of interest to us, given the name or
 // ID of a container. If inspection fails, it returns an error instead.
 func (mw *MobyWatcher) Inspect(ctx context.Context, nameorid string) (*whalewatcher.Container, error) {
-	details, err := mw.moby.ContainerInspect(ctx, nameorid)
+	details, err := mw.moby.ContainerInspect(ctx, nameorid, client.ContainerInspectOptions{})
 	if err != nil {
 		return nil, err
 	}
-	if details.State == nil || details.State.Pid == 0 {
+	if details.Container.State == nil || details.Container.State.Pid == 0 {
 		return nil, engineclient.NewProcesslessContainerError(nameorid, "Docker")
 	}
-	labels := maps.Clone(details.Config.Labels)
+	labels := maps.Clone(details.Container.Config.Labels)
 	if labels == nil {
 		labels = map[string]string{}
 	}
 	cntr := &whalewatcher.Container{
-		ID:      details.ID,
-		Name:    details.Name[1:], // get rid off the leading slash
+		ID:      details.Container.ID,
+		Name:    details.Container.Name[1:], // get rid off the leading slash
 		Labels:  labels,
-		PID:     details.State.Pid,
-		Project: details.Config.Labels[ComposerProjectLabel],
-		Paused:  details.State.Paused,
+		PID:     details.Container.State.Pid,
+		Project: details.Container.Config.Labels[ComposerProjectLabel],
+		Paused:  details.Container.State.Paused,
 	}
-	if details.HostConfig != nil && details.HostConfig.Privileged {
+	if details.Container.HostConfig != nil && details.Container.HostConfig.Privileged {
 		// Just the presence of the "magic" label is sufficient; the label's
 		// value doesn't matter.
 		cntr.Labels[PrivilegedLabel] = ""
@@ -224,14 +218,11 @@ func (mw *MobyWatcher) LifecycleEvents(ctx context.Context) (<-chan engineclient
 
 	go func() {
 		defer close(cntrerrstream)
-		evfilters := filters.NewArgs(
-			filters.KeyValuePair{Key: "type", Value: "container"},
-			filters.KeyValuePair{Key: "event", Value: "start"},
-			filters.KeyValuePair{Key: "event", Value: "die"},
-			filters.KeyValuePair{Key: "event", Value: "pause"},
-			filters.KeyValuePair{Key: "event", Value: "unpause"},
-		)
-		evs, errs := mw.moby.Events(ctx, events.ListOptions{Filters: evfilters})
+		evfilters := make(client.Filters).
+			Add("type", "container").
+			Add("event", "start", "stop", "die", "pause", "unpause")
+		res := mw.moby.Events(ctx, client.EventsListOptions{Filters: evfilters})
+		evs, errs := res.Messages, res.Err
 		for {
 			select {
 			case err := <-errs:

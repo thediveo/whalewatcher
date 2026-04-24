@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/client"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,24 +29,25 @@ var _ = Describe("lists mocked containers", func() {
 
 	It("lists containers", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 
-		cntrs := Successful(mm.ContainerList(context.Background(), container.ListOptions{}))
-		Expect(cntrs).To(HaveLen(0))
+		cntrs := Successful(mm.ContainerList(context.Background(), client.ContainerListOptions{}))
+		Expect(cntrs.Items).To(BeEmpty())
 
 		mm.AddContainer(mockingMoby)
-		cntrs = Successful(mm.ContainerList(context.Background(), container.ListOptions{}))
-		Expect(cntrs).To(HaveLen(1))
-		c := cntrs[0]
+		cntrs = Successful(mm.ContainerList(context.Background(), client.ContainerListOptions{}))
+		Expect(cntrs.Items).To(HaveLen(1))
+		c := cntrs.Items[0]
 		Expect(c.ID).To(Equal(mockingMoby.ID))
 		Expect(c.Names).To(Equal([]string{"/" + mockingMoby.Name}))
 		Expect(c.Labels).To(Equal(mockingMoby.Labels))
-		Expect(c.Status).To(Equal(MockedStatus[mockingMoby.Status]))
+		Expect(c.Status).To(BeEmpty())
+		Expect(c.State).To(Equal(MockedContainerStates[mockingMoby.Status]))
 
 		mm.AddContainer(furiousFuruncle)
-		cntrs = Successful(mm.ContainerList(context.Background(), container.ListOptions{}))
-		Expect(cntrs).To(HaveLen(2))
-		Expect(cntrs).To(ConsistOf(
+		cntrs = Successful(mm.ContainerList(context.Background(), client.ContainerListOptions{}))
+		Expect(cntrs.Items).To(HaveLen(2))
+		Expect(cntrs.Items).To(ConsistOf(
 			HaveField("ID", Equal(mockingMoby.ID)),
 			HaveField("ID", Equal(furiousFuruncle.ID)),
 		))
@@ -54,17 +55,17 @@ var _ = Describe("lists mocked containers", func() {
 
 	It("recognizes cancelled context", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		Expect(mm.ContainerList(ctx, container.ListOptions{})).Error().To(HaveOccurred())
+		Expect(mm.ContainerList(ctx, client.ContainerListOptions{})).Error().To(HaveOccurred())
 	})
 
 	It("registers and calls hooks", func() {
 		mm := NewMockingMoby()
-		defer mm.Close()
+		defer func() { _ = mm.Close() }()
 		doh := errors.New("doh!")
 
 		Expect(mm.ContainerInspect(
@@ -73,8 +74,8 @@ var _ = Describe("lists mocked containers", func() {
 				ContainerInspectPre,
 				func(HookKey) error {
 					return doh
-				}), "foobar")).
-			Error().To(Equal(doh))
+				}), "foobar", client.ContainerInspectOptions{})).
+			Error().To(BeEquivalentTo(doh))
 
 		Expect(mm.ContainerInspect(
 			WithHook(
@@ -82,8 +83,8 @@ var _ = Describe("lists mocked containers", func() {
 				ContainerInspectPost,
 				func(HookKey) error {
 					return doh
-				}), "foobar")).
-			Error().To(Equal(doh))
+				}), "foobar", client.ContainerInspectOptions{})).
+			Error().To(BeEquivalentTo(doh))
 	})
 
 })

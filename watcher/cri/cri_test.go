@@ -21,15 +21,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/thediveo/morbyd"
-	"github.com/thediveo/morbyd/build"
-	"github.com/thediveo/morbyd/run"
-	"github.com/thediveo/morbyd/timestamper"
-	criengine "github.com/thediveo/whalewatcher/engineclient/cri"
-	"github.com/thediveo/whalewatcher/engineclient/cri/test/img"
-	"github.com/thediveo/whalewatcher/test"
-	"github.com/thediveo/whalewatcher/watcher"
+	"github.com/thediveo/morbyd/v2"
+	"github.com/thediveo/morbyd/v2/build"
+	"github.com/thediveo/morbyd/v2/run"
+	"github.com/thediveo/morbyd/v2/timestamper"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1"
+
+	criengine "github.com/thediveo/whalewatcher/v2/engineclient/cri"
+	"github.com/thediveo/whalewatcher/v2/engineclient/cri/test/img"
+	"github.com/thediveo/whalewatcher/v2/test"
+	"github.com/thediveo/whalewatcher/v2/watcher"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -54,7 +55,7 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 	It("doesn't accept invalid engine API paths", func() {
 		goodfds := Filedescriptors()
 		DeferCleanup(func() {
-			Eventually(Goroutines).Within(5 * time.Second).ProbeEvery(250 * time.Millisecond).
+			Eventually(Goroutines).Within(10 * time.Second).ProbeEvery(250 * time.Millisecond).
 				ShouldNot(HaveLeaked())
 			Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
 		})
@@ -143,7 +144,7 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 				return err
 			}).Within(30*time.Second).ProbeEvery(1*time.Second).
 				Should(Succeed(), "CRI API provider never became responsive")
-			defer func() { cricl.Close() }()
+			defer func() { _ = cricl.Close() }()
 
 		})
 

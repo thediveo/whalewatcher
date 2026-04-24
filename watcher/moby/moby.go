@@ -16,9 +16,10 @@ package moby
 
 import (
 	"github.com/cenkalti/backoff/v4"
-	"github.com/docker/docker/client"
-	engineclient "github.com/thediveo/whalewatcher/engineclient/moby"
-	"github.com/thediveo/whalewatcher/watcher"
+	"github.com/moby/moby/client"
+
+	engineclient "github.com/thediveo/whalewatcher/v2/engineclient/moby"
+	"github.com/thediveo/whalewatcher/v2/watcher"
 )
 
 // Type ID of the container engine handled by this watcher.
@@ -39,12 +40,11 @@ const Type = engineclient.Type
 func New(dockersock string, buggeroff backoff.BackOff, opts ...engineclient.NewOption) (watcher.Watcher, error) {
 	clientopts := []client.Opt{
 		client.FromEnv,
-		client.WithAPIVersionNegotiation(),
 	}
 	if dockersock != "" {
 		clientopts = append(clientopts, client.WithHost(dockersock))
 	}
-	moby, err := client.NewClientWithOpts(clientopts...)
+	moby, err := client.New(clientopts...)
 	if err != nil {
 		return nil, err
 	}
