@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/thediveo/testily/concur"
 	"golang.org/x/sys/unix"
 )
 
@@ -67,9 +68,7 @@ func visitUTS(pid int, fn func()) {
 	}
 	defer func() { _ = unix.Close(newUTSfd) }()
 
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
+	<-concur.CloseWhenGone(func() {
 		runtime.LockOSThread()
 		if err := unix.Setns(newUTSfd, 0); err != nil {
 			runtime.UnlockOSThread()
@@ -87,6 +86,5 @@ func visitUTS(pid int, fn func()) {
 			return
 		}
 		runtime.UnlockOSThread()
-	}()
-	<-done // wait for fn to be called or something gone terribly wrong.
+	})
 }
