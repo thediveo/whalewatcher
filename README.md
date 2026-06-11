@@ -185,9 +185,9 @@ you a controlled and somewhat isolated environment.
 > Volume~~" command, as it is utterly broken by design, ignoring
 > `.devcontainer/devcontainer.json`.
 
-1. `git clone https://github.com/thediveo/irks`
+1. `git clone https://github.com/thediveo/whalewatcher`
 2. in VSCode: Ctrl+Shift+P, "Dev Containers: Open Workspace in Container..."
-3. select `irks.code-workspace` and off you go...
+3. select `whalewatcher.code-workspace` and off you go...
 
 ## Contributing
 
@@ -195,5 +195,5 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Copyright and License
 
-`whalewatcher` is Copyright 2021, 2024 Harald Albrecht, licensed under the
+`whalewatcher` is Copyright 2021, 2026 Harald Albrecht, licensed under the
 Apache License, Version 2.0.

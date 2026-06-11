@@ -18,6 +18,7 @@
 		"go.testFlags": [
 			"-v",
 			"-race",
+			"--",
 			"-ginkgo.v",
 			"-ginkgo.no-color"
 		],
@@ -33,35 +34,6 @@
 		"markdown.styles": [
 			"./.vscode/markdown-preview.css"
 		],
-		"statsBar.memoUsage.format": "$(chip) ${used}/${total} ${unit}, ${percent}%",
-		"statsBar.location": "Right",
 		"go.lintOnSave": "workspace",
 	},
-	"extensions": {
-		"recommendations": [
-			"ms-vscode.live-server",
-			"njzy.stats-bar"
-		]
-	},
-	"launch": {
-		"version": "0.2.0",
-		"configurations": [
-			{
-				"name": "Debug tests as Root",
-				"type": "go",
-				"request": "launch",
-				"mode": "auto", // debug or test depending on current editor window
-				"program": "${fileDirname}",
-				"asRoot": true,
-				"console": "integratedTerminal"
-			},
-			{
-				"name": "Debug tests",
-				"type": "go",
-				"request": "launch",
-				"mode": "auto", // debug or test depending on current editor window
-				"program": "${fileDirname}",
-			}
-		]
-	}
 }
