@@ -1,11 +1,11 @@
 module github.com/thediveo/whalewatcher/v2
 
-go 1.25.5
+go 1.26.3
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/containerd/containerd/api v1.11.1
-	github.com/containerd/containerd/v2 v2.3.0-beta.0
+	github.com/containerd/containerd/v2 v2.3.1
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/typeurl/v2 v2.3.0
 	github.com/google/uuid v1.6.0
@@ -19,7 +19,7 @@ require (
 	github.com/thediveo/testily v0.5.0
 	golang.org/x/sys v0.46.0
 	google.golang.org/grpc v1.81.1
-	k8s.io/cri-api v0.36.0-alpha.2
+	k8s.io/cri-api v0.36.0
 )
 
 require (
