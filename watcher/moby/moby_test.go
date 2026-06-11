@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/thediveo/morbyd/v2"
 	"github.com/thediveo/morbyd/v2/run"
@@ -59,23 +58,16 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		// While // https://github.com/moby/moby/pull/42379 is pending we need
-		// to run any additional API calls from the same goroutine as where we
-		// start the Watch in order to not trigger the race detector.
-		nchan := make(chan []network.Summary, 1)
-		done := CloseWhenGone(func() {
-			defer GinkgoRecover()
-			dc, ok := mw.Client().(client.APIClient)
-			Expect(ok).To(BeTrue())
-			Expect(dc).NotTo(BeNil())
-			networks := Successful(dc.NetworkList(ctx, client.NetworkListOptions{}))
-			nchan <- networks.Items
-			_ = mw.Watch(ctx)
-		})
-		Consistently(done).WithTimeout(5 * time.Second).WithPolling(250 * time.Millisecond).
-			ShouldNot(BeClosed())
-		networks := <-nchan
-		Expect(networks).To(ContainElement(And(
+
+		done := CloseWhenGone(func() { _ = mw.Watch(ctx) })
+		Consistently(done).WithTimeout(5*time.Second).WithPolling(250*time.Millisecond).
+			ShouldNot(BeClosed(), "premature termination of watch")
+
+		dc, ok := mw.Client().(client.APIClient)
+		Expect(ok).To(BeTrue())
+		Expect(dc).NotTo(BeNil())
+		networks := Successful(dc.NetworkList(ctx, client.NetworkListOptions{}))
+		Expect(networks.Items).To(ContainElement(And(
 			HaveField("Name", Equal("bridge")),
 			HaveField("Driver", Equal("bridge")),
 		)))
@@ -88,7 +80,7 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 
 		wctx, cancel := context.WithCancel(ctx)
 		done := CloseWhenGone(func() { _ = mw.Watch(wctx) })
-		Consistently(done, "1s").ShouldNot(BeClosed())
+		Consistently(done).WithTimeout(1 * time.Second).ProbeEvery(250 * time.Second).ShouldNot(BeClosed())
 
 		By("creating a new Docker session for testing")
 		sess := Successful(morbyd.NewSession(ctx,
@@ -102,8 +94,8 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 			run.WithCommand("/bin/sh", "-c", "while true; do sleep 1; done"),
 			run.WithLabel("com.docker.compose.project=whalewatcher_whackywhale")))
 
-		var purge sync.Once
-		defer purge.Do(func() { cntr.Kill(ctx) })
+		purge := sync.OnceFunc(func() { cntr.Kill(ctx) })
+		defer purge()
 
 		// eventually there should be a container poping up with the correct
 		// composer project label.
@@ -117,9 +109,7 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 
 		// and eventually that container should also be gone from the watch list
 		// after we killed it.
-		purge.Do(func() {
-			cntr.Kill(ctx)
-		})
+		purge()
 		Eventually(portfolio).Should(BeEmpty())
 
 		// wait for the watcher to correctly spin down.

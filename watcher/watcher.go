@@ -119,12 +119,7 @@ func New(engine engineclient.EngineClient, buggeroff backoff.BackOff) Watcher {
 		writeportfolio: pf,
 		ready:          make(chan struct{}),
 	}
-	var closeOnce sync.Once
-	ww.closeReady = func() {
-		closeOnce.Do(func() {
-			close(ww.ready)
-		})
-	}
+	ww.closeReady = sync.OnceFunc(func() { close(ww.ready) })
 	return ww
 }
 
