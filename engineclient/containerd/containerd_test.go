@@ -109,9 +109,7 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 
 			By("creating a new Docker session for testing")
 			sess = Successful(morbyd.NewSession(ctx)) // no auto-clean
-			DeferCleanup(func(ctx context.Context) {
-				sess.Close(ctx)
-			})
+			DeferCleanup(sess.Close)
 
 			By("spinning up a Docker container with stand-alone containerd, courtesy of the KinD k8s sig")
 			// The necessary container start arguments come from KinD's Docker node
@@ -149,10 +147,7 @@ var _ = Describe("containerd engineclient", Ordered, func() {
 				run.WithTmpfs("/run"),
 				run.WithDevice("/dev/fuse"),
 				run.WithCombinedOutput(timestamper.New(GinkgoWriter))))
-			DeferCleanup(func(ctx context.Context) {
-				By("removing the test container")
-				providerCntr.Kill(ctx)
-			})
+			DeferCleanup(providerCntr.Kill)
 
 			By("waiting for containerized containerd to become responsive")
 			pid := Successful(providerCntr.PID(ctx))
