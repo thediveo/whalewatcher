@@ -85,10 +85,7 @@ var _ = Describe("Moby engine watcher end-to-end test", func() {
 		By("creating a new Docker session for testing")
 		sess := Successful(morbyd.NewSession(ctx,
 			session.WithAutoCleaning("test.whalewatcher=watcher/moby")))
-		DeferCleanup(func(ctx context.Context) {
-			By("auto-cleaning the session")
-			sess.Close(ctx)
-		})
+		DeferCleanup(sess.Close)
 		cntr := Successful(sess.Run(ctx, "busybox",
 			run.WithAutoRemove(),
 			run.WithCommand("/bin/sh", "-c", "while true; do sleep 1; done"),

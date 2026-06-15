@@ -49,10 +49,7 @@ var _ = Describe("hostname", Ordered, func() {
 		By("creating a new Docker session for testing")
 		sess := Successful(morbyd.NewSession(ctx,
 			session.WithAutoCleaning("test.whalewatcher=engineclient/cri")))
-		DeferCleanup(func(ctx context.Context) {
-			By("auto-cleaning the session")
-			sess.Close(ctx)
-		})
+		DeferCleanup(sess.Close)
 
 		By("creating a canary container")
 		canaryCntr := Successful(sess.Run(ctx,

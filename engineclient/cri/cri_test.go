@@ -66,10 +66,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 		By("creating a new Docker session for testing")
 		sess := Successful(morbyd.NewSession(ctx,
 			session.WithAutoCleaning("test.whalewatcher=engineclient/cri")))
-		DeferCleanup(func(ctx context.Context) {
-			By("auto-cleaning the session")
-			sess.Close(ctx)
-		})
+		DeferCleanup(sess.Close)
 
 		By("spinning up a Docker container with CRI API providers, courtesy of the KinD k8s sig")
 		// The necessary container start arguments come from KinD's Docker node
@@ -108,10 +105,7 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 			run.WithTmpfs("/run"),
 			run.WithDevice("/dev/fuse"),
 			run.WithCombinedOutput(timestamper.New(GinkgoWriter))))
-		DeferCleanup(func(ctx context.Context) {
-			By("removing the CRI API providers Docker container")
-			providerCntr.Kill(ctx)
-		})
+		DeferCleanup(providerCntr.Kill)
 	})
 
 	// In the following, we want to run the set of unit tests on multiple CRI

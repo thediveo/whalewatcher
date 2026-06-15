@@ -110,9 +110,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		ww = New(te, backoff.NewConstantBackOff(500*time.Millisecond)).(*watcher)
 		Expect(ww).NotTo(BeNil())
 
-		DeferCleanup(func() {
-			ww.Close()
-		})
+		DeferCleanup(ww.Close)
 	})
 
 	It("returns the engine ID and version", func() {

@@ -68,7 +68,7 @@ func visitUTS(pid int, fn func()) {
 	}
 	defer func() { _ = unix.Close(newUTSfd) }()
 
-	<-concur.CloseWhenGone(func() {
+	concur.GoSync(func() {
 		runtime.LockOSThread()
 		if err := unix.Setns(newUTSfd, 0); err != nil {
 			runtime.UnlockOSThread()

@@ -85,9 +85,7 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 
 			By("creating a new Docker session for testing")
 			sess = Successful(morbyd.NewSession(ctx))
-			DeferCleanup(func(ctx context.Context) {
-				sess.Close(ctx)
-			})
+			DeferCleanup(sess.Close)
 
 			By("spinning up a Docker container with CRI API providers, courtesy of the KinD k8s sig")
 			// The necessary container start arguments come from KinD's Docker node
@@ -126,10 +124,7 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 				run.WithTmpfs("/run"),
 				run.WithDevice("/dev/fuse"),
 				run.WithCombinedOutput(timestamper.New(GinkgoWriter))))
-			DeferCleanup(func(ctx context.Context) {
-				By("removing the CRI API providers Docker container")
-				providerCntr.Kill(ctx)
-			})
+			DeferCleanup(providerCntr.Kill)
 
 			By("waiting for the CRI API provider to become responsive")
 			pid := Successful(providerCntr.PID(ctx))
@@ -156,14 +151,10 @@ var _ = Describe("CRI watcher engine end-to-end test", Ordered, Serial, func() {
 				pid, "/run/containerd/containerd.sock")
 			mw = Successful(New(endpoint, nil,
 				criengine.WithPID(pid)))
-			DeferCleanup(func() {
-				mw.Close()
-			})
+			DeferCleanup(mw.Close)
 			Expect(mw.PID()).To(Equal(pid))
 
-			DeferCleanup(func(ctx context.Context) {
-				sess.Close(ctx)
-			})
+			DeferCleanup(sess.Close)
 		})
 
 		It("gets and uses the underlying CRI client", slowSpec, func(ctx context.Context) {
