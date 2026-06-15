@@ -92,7 +92,8 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 	BeforeEach(func() {
 		goodfds := Filedescriptors()
 		DeferCleanup(func() {
-			Eventually(Goroutines).ShouldNot(HaveLeaked())
+			Eventually(Goroutines).Within(2 * time.Second).ProbeEvery(100 * time.Millisecond).
+				ShouldNot(HaveLeaked())
 			Expect(Filedescriptors()).NotTo(HaveLeakedFds(goodfds))
 		})
 	})
