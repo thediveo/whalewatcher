@@ -25,7 +25,7 @@
         "ghcr.io/thediveo/devcontainer-features/local-pkgsite:1": {
             "port": "16092"
         },
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+        "ghcr.io/devcontainers/features/docker-in-docker:4": {
             "version": "latest",
             "moby": false // go for the upstream Docker-CE
         }
