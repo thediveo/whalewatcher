@@ -1,7 +1,7 @@
 {
     "name": "whalewatcher (docker-in-docker)",
     "portsAttributes": {
-        "16092": {
+        "6060": {
             "label": "whalewatcher package documentation",
             "onAutoForward": "notify",
             "protocol": "http"
@@ -23,7 +23,7 @@
             "html": true
         },
         "ghcr.io/thediveo/devcontainer-features/local-pkgsite:1": {
-            "port": "16092"
+            "port": "6060"
         },
         "ghcr.io/devcontainers/features/docker-in-docker:4": {
             "version": "latest",
