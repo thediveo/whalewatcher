@@ -80,7 +80,7 @@ var _ = Describe("moby engineclient", func() {
 	var ec *MobyWatcher
 
 	BeforeEach(func() {
-		mm = mockingmoby.NewMockingMoby()
+		mm = mockingmoby.New()
 		ec = NewMobyWatcher(mm, WithPID(123456))
 		Expect(ec.PID()).To(Equal(123456))
 		mm.AddContainer(furiousFuruncle)
@@ -88,7 +88,7 @@ var _ = Describe("moby engineclient", func() {
 	})
 
 	It("can change its type", func() {
-		mm := mockingmoby.NewMockingMoby()
+		mm := mockingmoby.New()
 		ec := NewMobyWatcher(mm, WithPID(123456), WithDemonType("mobyproject.org"))
 		defer ec.Close()
 		Expect(ec.Type()).To(Equal("mobyproject.org"))
@@ -99,16 +99,19 @@ var _ = Describe("moby engineclient", func() {
 		Expect(ec.API()).NotTo(BeEmpty())
 	})
 
-	It("has an ID and version", func(ctx context.Context) {
+	It("has an ID, version, and API version", func(ctx context.Context) {
 		ctx, cancel := context.WithCancel(ctx)
-		Expect(ec.ID(ctx)).ToNot(BeEmpty())
+		Expect(ec.ID(ctx)).NotTo(BeEmpty())
 		Expect(ec.Version(ctx)).NotTo(BeEmpty())
+		Expect(ec.APIVersion(ctx)).NotTo(BeEmpty())
+
 		cancel()
 		Expect(ec.ID(ctx)).To(BeZero())
+		Expect(ec.APIVersion(ctx)).To(BeEmpty())
 	})
 
 	It("sets a rucksack packer", func() {
-		mm := mockingmoby.NewMockingMoby() // want to control rucksack
+		mm := mockingmoby.New() // want to control rucksack
 		p := packer{}
 		ec = NewMobyWatcher(mm, WithRucksackPacker(&p))
 		Expect(ec).NotTo(BeNil())
@@ -117,7 +120,7 @@ var _ = Describe("moby engineclient", func() {
 	})
 
 	It("returns the underlying client", func() {
-		mm := mockingmoby.NewMockingMoby()
+		mm := mockingmoby.New()
 		ec = NewMobyWatcher(mm)
 		Expect(ec).NotTo(BeNil())
 		defer ec.Close()

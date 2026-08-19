@@ -23,6 +23,10 @@ import (
 	"github.com/moby/moby/client"
 )
 
+type ServerVersionAPIClient interface {
+	ServerVersion(ctx context.Context, options client.ServerVersionOptions) (client.ServerVersionResult, error)
+}
+
 // MockingMoby is a mock Docker client implementing only listing all containers,
 // inspecting them (limited information only) and receiving container-related
 // events. All other service API methods will return a not-implemented error
@@ -33,6 +37,7 @@ import (
 type MockingMoby struct {
 	client.ContainerAPIClient
 	client.SystemAPIClient
+	ServerVersionAPIClient
 
 	mux        sync.RWMutex
 	containers map[string]MockedContainer // mocked containers by ID
@@ -48,22 +53,33 @@ type MockingMoby struct {
 var (
 	_ client.ContainerAPIClient = (*MockingMoby)(nil)
 	_ client.SystemAPIClient    = (*MockingMoby)(nil)
+	_ ServerVersionAPIClient    = (*MockingMoby)(nil)
 )
 
-// NewMockingMoby returns a new instance of a mock Docker client.
-func NewMockingMoby() *MockingMoby {
+// New returns a new instance of a mock Docker client.
+func New() *MockingMoby {
 	return &MockingMoby{
 		containers: map[string]MockedContainer{},
 		names:      map[string]string{},
 	}
 }
 
-// DaemonHost returns the host address used by the client
+// DaemonHost returns the host address used by the client.
 func (mm *MockingMoby) DaemonHost() string { return "mock://mocked" }
 
 // Close closes the mock client, releasing its internal resources.
 func (mm *MockingMoby) Close() error {
 	return nil
+}
+
+// ServerVersion returns version information about this fake server.
+func (mm *MockingMoby) ServerVersion(ctx context.Context, options client.ServerVersionOptions) (client.ServerVersionResult, error) {
+	if err := ctx.Err(); err != nil {
+		return client.ServerVersionResult{}, err
+	}
+	return client.ServerVersionResult{
+		APIVersion: "1.666",
+	}, nil
 }
 
 // isCtxCancelled returns an error if the specified Context is done, either

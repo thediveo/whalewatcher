@@ -99,6 +99,9 @@ func WithPID(pid int) NewOption {
 	}
 }
 
+// WithIgnoredNamespaces configures the namespaces that should be ignored when
+// watching the workload of a containerd engine. This overwrites any default or
+// previous ignored namespaces configuration option.
 func WithIgnoredNamespaces(ignores []string) NewOption {
 	return func(cw *ContainerdWatcher) {
 		cw.ignoredNamespaces = ignores

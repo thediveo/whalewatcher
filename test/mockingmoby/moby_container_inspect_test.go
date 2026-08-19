@@ -29,7 +29,7 @@ import (
 var _ = Describe("inspects mocked containers", func() {
 
 	It("inspects containers by ID and name", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 
 		Expect(mm.ContainerInspect(context.Background(), "foo", client.ContainerInspectOptions{})).Error().To(HaveOccurred())
@@ -58,7 +58,7 @@ var _ = Describe("inspects mocked containers", func() {
 	})
 
 	It("inspects status correctly", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 		mm.AddContainer(furiousFuruncle)
 		mm.StopContainer(furiousFuruncle.Name)
@@ -94,7 +94,7 @@ var _ = Describe("inspects mocked containers", func() {
 	})
 
 	It("recognizes cancelled context", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -104,7 +104,7 @@ var _ = Describe("inspects mocked containers", func() {
 	})
 
 	It("registers and calls hooks", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 		doh := errors.New("doh!")
 

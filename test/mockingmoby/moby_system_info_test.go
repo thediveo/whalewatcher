@@ -27,7 +27,7 @@ import (
 var _ = Describe("informs", func() {
 
 	It("returns mocked engine information", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 		info := Successful(mm.Info(context.Background(), client.InfoOptions{}))
 		Expect(info.Info.ID).To(HaveLen(6*(4+1+4+1) - 1))
@@ -35,7 +35,7 @@ var _ = Describe("informs", func() {
 	})
 
 	It("recognizes cancelled context", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 
 		ctx, cancel := context.WithCancel(context.Background())

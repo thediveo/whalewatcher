@@ -28,7 +28,7 @@ import (
 var _ = Describe("mocked event streaming", func() {
 
 	It("streams container events", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -124,7 +124,7 @@ var _ = Describe("mocked event streaming", func() {
 	})
 
 	It("stops event streaming", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 
 		res := mm.Events(context.Background(), client.EventsListOptions{})

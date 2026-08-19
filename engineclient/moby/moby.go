@@ -45,6 +45,8 @@ const PrivilegedLabel = "github.com/thediveo/whalewatcher/moby/privileged"
 type MobyAPIClient interface {
 	client.ContainerAPIClient
 	client.SystemAPIClient
+	ServerVersion(ctx context.Context, options client.ServerVersionOptions) (client.ServerVersionResult, error)
+
 	DaemonHost() string
 	Close() error
 }
@@ -59,8 +61,9 @@ type MobyWatcher struct {
 }
 
 // Make sure that the EngineClient and Preflighter interfaces are fully implemented.
-var _ (engineclient.EngineClient) = (*MobyWatcher)(nil)
-var _ (engineclient.Preflighter) = (*MobyWatcher)(nil)
+var _ engineclient.EngineClient = (*MobyWatcher)(nil)
+var _ engineclient.APIVersioner = (*MobyWatcher)(nil)
+var _ engineclient.Preflighter = (*MobyWatcher)(nil)
 
 // NewMobyWatcher returns a new MobyWatcher using the specified Docker engine
 // client; typically, you would want to use this lower-level constructor only in
@@ -139,6 +142,16 @@ func (mw *MobyWatcher) Client() any { return mw.moby }
 // Close cleans up and release any engine client resources, if necessary.
 func (mw *MobyWatcher) Close() {
 	_ = mw.moby.Close()
+}
+
+// APIVersion returns the highest API version supported by the Docker demon
+// we're connected to.
+func (mw *MobyWatcher) APIVersion(ctx context.Context) string {
+	info, err := mw.moby.ServerVersion(ctx, client.ServerVersionOptions{})
+	if err != nil {
+		return ""
+	}
+	return info.APIVersion
 }
 
 // Preflight allows an engine client to do some final pre-flight operations that

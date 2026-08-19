@@ -72,6 +72,11 @@ func (e *trialEngine) Trials() uint32 {
 }
 
 var _ engineclient.Trialer = (*trialEngine)(nil)
+var _ engineclient.APIVersioner = (*trialEngine)(nil)
+
+func (e *trialEngine) APIVersion(ctx context.Context) string {
+	return e.EngineClient.(engineclient.APIVersioner).APIVersion(ctx)
+}
 
 // ClearTrials resets the trial counter.
 func (e *trialEngine) ClearTrials() {
@@ -103,7 +108,7 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 	var ww *watcher
 
 	BeforeEach(func() {
-		mm = mockingmoby.NewMockingMoby()
+		mm = mockingmoby.New()
 		Expect(mm).NotTo(BeNil())
 		te = &trialEngine{
 			EngineClient: moby.NewMobyWatcher(mm),
@@ -114,9 +119,10 @@ var _ = Describe("watcher (of whales, not: Wales)", func() {
 		DeferCleanup(ww.Close)
 	})
 
-	It("returns the engine ID and version", func() {
-		Expect(ww.ID(context.Background())).NotTo(BeEmpty())
-		Expect(ww.Version(context.Background())).NotTo(BeEmpty())
+	It("returns the engine ID, version, and API version", func(ctx context.Context) {
+		Expect(ww.ID(ctx)).NotTo(BeEmpty())
+		Expect(ww.Version(ctx)).NotTo(BeEmpty())
+		Expect(ww.APIVersion(ctx)).NotTo(BeEmpty())
 	})
 
 	It("has type and API path", func() {

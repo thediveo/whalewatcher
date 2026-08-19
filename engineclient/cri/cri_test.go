@@ -167,6 +167,11 @@ var _ = Describe("CRI API engineclient", Ordered, func() {
 
 	tests := func() {
 
+		It("queries version information", func(ctx context.Context) {
+			Expect(cw.Version(ctx)).NotTo(BeEmpty())
+			Expect(cw.APIVersion(ctx)).NotTo(BeEmpty())
+		})
+
 		It("inspects nil when container doesn't exist", func(ctx context.Context) {
 			Expect(cw.Inspect(ctx, "---noid---")).Error().To(HaveOccurred())
 		})
