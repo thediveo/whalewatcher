@@ -57,6 +57,14 @@ type EngineClient interface {
 	Close()
 }
 
+// APIVersioner optionally returns the API version of a container engine as
+// opposed to that engine's software version, or an empty string. Please note
+// that containerd currently does not provide any API version information at
+// runtime.
+type APIVersioner interface {
+	APIVersion(ctx context.Context) string
+}
+
 // Preflighter allows an engine client to do some final pre-flight operations
 // right before starting a watch, where the preflight ops might require talking
 // to a particular engine and thus should be controlled by a context.

@@ -85,8 +85,9 @@ func NewCRIWatcher(client *Client, opts ...NewOption) *CRIWatcher {
 	return cw
 }
 
-// Make sure that the EngineClient interface is fully implemented
+// Make sure that the EngineClient interface is fully implemented.
 var _ (engineclient.EngineClient) = (*CRIWatcher)(nil)
+var _ (engineclient.APIVersioner) = (*CRIWatcher)(nil)
 
 // NewOption represents options to NewCRIWatcher when creating new watchers
 // keeping eyes on CRI-supporting container engines.
@@ -121,7 +122,8 @@ func (cw *CRIWatcher) ID(ctx context.Context) string {
 // Type returns the type identifier for this container engine.
 func (cw *CRIWatcher) Type() string { return Type }
 
-// Version information about the engine.
+// Version information about the engine in the form “runtime-name space
+// runtime-version”.
 func (cw *CRIWatcher) Version(ctx context.Context) string {
 	version, err := cw.client.rtcl.Version(ctx, &runtime.VersionRequest{
 		Version: kubeAPIVersion,
@@ -129,8 +131,7 @@ func (cw *CRIWatcher) Version(ctx context.Context) string {
 	if err != nil {
 		return ""
 	}
-	return fmt.Sprintf("%s %s [API %s]",
-		version.RuntimeName, version.RuntimeVersion, version.RuntimeApiVersion)
+	return fmt.Sprintf("%s %s", version.RuntimeName, version.RuntimeVersion)
 }
 
 // API returns the container engine API path.
@@ -138,6 +139,14 @@ func (cw *CRIWatcher) API() string { return cw.client.conn.Target() }
 
 // PID returns the container engine PID, when known.
 func (cw *CRIWatcher) PID() int { return cw.pid }
+
+func (cw *CRIWatcher) APIVersion(ctx context.Context) string {
+	info, err := cw.client.RuntimeService().Version(ctx, &runtime.VersionRequest{})
+	if err != nil {
+		return ""
+	}
+	return info.RuntimeApiVersion
+}
 
 // Client returns the underlying engine client (engine-specific).
 func (cw *CRIWatcher) Client() any { return cw.client }

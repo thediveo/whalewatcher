@@ -71,6 +71,12 @@ type Watcher interface {
 	Close()
 }
 
+// APIVersioner optionally returns the API version of a container engine as
+// opposed to that engine's software version, or an empty string. Please note
+// that containerd currently does not provide any API version information at
+// runtime.
+type APIVersioner = engineclient.APIVersioner
+
 // ContainerEvent informs about a particular container becoming alive or
 // terminated, or paused and unpaused.
 type ContainerEvent struct {
@@ -102,6 +108,9 @@ type watcher struct {
 	eventchmux sync.Mutex
 	eventchs   []chan ContainerEvent
 }
+
+var _ Watcher = (*watcher)(nil)
+var _ APIVersioner = (*watcher)(nil)
 
 // New returns a new Watcher tracking alive containers as they come and go,
 // using the specified container EngineClient. If the backoff is nil then the
@@ -175,6 +184,17 @@ func (ww *watcher) API() string { return ww.engine.API() }
 
 // Container engine PID, when known.
 func (ww *watcher) PID() int { return ww.engine.PID() }
+
+// APIVersion returns the API version of a container engine as opposed to that
+// engine's software version, or an empty string. Please note that containerd
+// currently does not provide any API version information at runtime.
+func (ww *watcher) APIVersion(ctx context.Context) string {
+	v, _ := ww.engine.(APIVersioner)
+	if v == nil {
+		return ""
+	}
+	return v.APIVersion(ctx)
+}
 
 // Client returns the underlying engine client (engine-specific).
 func (ww *watcher) Client() any { return ww.engine.Client() }

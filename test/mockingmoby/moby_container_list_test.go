@@ -28,7 +28,7 @@ import (
 var _ = Describe("lists mocked containers", func() {
 
 	It("lists containers", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 
 		cntrs := Successful(mm.ContainerList(context.Background(), client.ContainerListOptions{}))
@@ -54,7 +54,7 @@ var _ = Describe("lists mocked containers", func() {
 	})
 
 	It("recognizes cancelled context", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -64,7 +64,7 @@ var _ = Describe("lists mocked containers", func() {
 	})
 
 	It("registers and calls hooks", func() {
-		mm := NewMockingMoby()
+		mm := New()
 		defer func() { _ = mm.Close() }()
 		doh := errors.New("doh!")
 

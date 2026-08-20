@@ -1,7 +1,7 @@
 {
     "name": "whalewatcher (docker-in-docker)",
     "portsAttributes": {
-        "16092": {
+        "6060": {
             "label": "whalewatcher package documentation",
             "onAutoForward": "notify",
             "protocol": "http"
@@ -23,9 +23,9 @@
             "html": true
         },
         "ghcr.io/thediveo/devcontainer-features/local-pkgsite:1": {
-            "port": "16092"
+            "port": "6060"
         },
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+        "ghcr.io/devcontainers/features/docker-in-docker:4": {
             "version": "latest",
             "moby": false // go for the upstream Docker-CE
         }
@@ -35,8 +35,7 @@
         "PATH": "/home/vscode/go/bin:/go/bin:/usr/local/go/bin:${localEnv:PATH}"
     },
     "postCreateCommand": {
-        "install-mockgen": "go install go.uber.org/mock/mockgen@latest",
-        "go-for-root": "echo 'Defaults:vscode secure_path = \"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin\"' | sudo tee -a /etc/sudoers.d/vscode",
+        "go-for-root": "echo 'Defaults:vscode secure_path = \"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin\"' | sudo tee -a /etc/sudoers.d/vscode"
     },
     "customizations": {
         "vscode": {
