@@ -31,10 +31,11 @@
     },
     "remoteEnv": {
         "GOPATH": "/home/vscode/go",
-        "PATH": "/home/vscode/go/bin:/go/bin:/usr/local/go/bin:${localEnv:PATH}"
+        "PATH": "/home/vscode/go/bin:/go/bin:/usr/local/go/bin:${containerEnv:PATH}"
     },
     "postCreateCommand": {
-        "go-for-root": "echo 'Defaults:vscode secure_path = \"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin\"' | sudo tee -a /etc/sudoers.d/vscode"
+        "go-for-root": "echo 'Defaults:vscode secure_path = \"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin\"' | sudo tee -a /etc/sudoers.d/vscode",
+        "no-first-run-notice": "rm -f /workspaces/.codespaces/shared/first-run-notice.txt"
     },
     "customizations": {
         "vscode": {
